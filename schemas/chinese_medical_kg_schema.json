@@ -1,0 +1,232 @@
+{
+  "version": "1.0",
+  "description": "中文心脏移植知识图谱Schema - 基于7个官方指南设计",
+  "entity_types": {
+    "手术步骤": {
+      "description": "心脏移植手术的各个操作步骤",
+      "examples": ["受者病心切除", "供心准备", "左心房吻合", "体外循环"],
+      "properties": {
+        "步骤名称": "string",
+        "所属术式": "enum[双腔静脉法,双房法,全心法,异位移植]",
+        "时序顺序": "integer",
+        "持续时间": "string",
+        "关键操作": "array[string]",
+        "注意事项": "array[string]"
+      }
+    },
+    "供体特征": {
+      "description": "供心的特征和质量指标",
+      "examples": ["供体年龄", "供心缺血时间", "供心左室肥厚", "供体糖尿病"],
+      "properties": {
+        "特征名称": "string",
+        "参考范围": "string",
+        "评估方法": "string",
+        "影响因素": "array[string]"
+      }
+    },
+    "受体特征": {
+      "description": "受者的临床特征",
+      "examples": ["受体年龄", "肺血管阻力", "心功能分级", "既往手术史"],
+      "properties": {
+        "特征名称": "string",
+        "正常范围": "string",
+        "测量方法": "string",
+        "临床意义": "string"
+      }
+    },
+    "风险因子": {
+      "description": "影响移植结果的风险因素",
+      "examples": ["延长缺血时间", "供受体年龄差异", "高肺血管阻力", "再次移植"],
+      "properties": {
+        "风险名称": "string",
+        "风险等级": "enum[低,中,高]",
+        "阈值": "string",
+        "风险量化": "string"
+      }
+    },
+    "并发症": {
+      "description": "术中和术后可能出现的并发症",
+      "examples": ["原发性移植物功能障碍", "急性排斥反应", "感染", "出血"],
+      "properties": {
+        "并发症名称": "string",
+        "发生率": "string",
+        "严重程度": "enum[轻度,中度,重度,危及生命]",
+        "诊断标准": "string",
+        "处理方案": "array[string]"
+      }
+    },
+    "禁忌症": {
+      "description": "心脏移植的禁忌症",
+      "examples": ["活动性恶性肿瘤", "活动性感染", "严重肺动脉高压", "药物滥用"],
+      "properties": {
+        "禁忌症名称": "string",
+        "类型": "enum[绝对禁忌症,相对禁忌症]",
+        "依据": "string",
+        "例外情况": "string"
+      }
+    },
+    "药物": {
+      "description": "免疫抑制和其他相关药物",
+      "examples": ["他克莫司", "环孢素", "硫唑嘌呤", "甲泼尼龙"],
+      "properties": {
+        "药物名称": "string",
+        "药物类型": "string",
+        "用法用量": "string",
+        "不良反应": "array[string]",
+        "禁忌": "array[string]"
+      }
+    },
+    "监测指标": {
+      "description": "术前、术中、术后需要监测的指标",
+      "examples": ["肺血管阻力", "左室射血分数", "肌酐", "血药浓度"],
+      "properties": {
+        "指标名称": "string",
+        "正常范围": "string",
+        "监测频率": "string",
+        "临床意义": "string"
+      }
+    },
+    "诊断标准": {
+      "description": "各种疾病和并发症的诊断标准",
+      "examples": ["排斥反应诊断", "PGD分级", "感染诊断"],
+      "properties": {
+        "标准名称": "string",
+        "诊断依据": "array[string]",
+        "分级标准": "string"
+      }
+    },
+    "治疗方案": {
+      "description": "各种情况的治疗和管理方案",
+      "examples": ["急性排斥治疗", "感染处理", "术后免疫抑制方案"],
+      "properties": {
+        "方案名称": "string",
+        "适应症": "array[string]",
+        "具体措施": "array[string]",
+        "预期效果": "string"
+      }
+    },
+    "器械设备": {
+      "description": "手术和治疗使用的器械设备",
+      "examples": ["体外循环机", "呼吸机", "ECMO", "心室辅助装置"],
+      "properties": {
+        "设备名称": "string",
+        "使用场景": "string",
+        "操作要点": "string"
+      }
+    }
+  },
+  "relation_types": {
+    "导致": {
+      "description": "因果关系：A导致B",
+      "examples": ["延长缺血时间 → 原发性移植物功能障碍"],
+      "valid_source_types": ["风险因子", "并发症", "供体特征", "受体特征"],
+      "valid_target_types": ["并发症", "不良预后"],
+      "properties": {
+        "证据强度": "enum[RCT,队列研究,病例对照,病例报告,专家共识]",
+        "优势比": "float",
+        "置信区间": "string",
+        "P值": "float"
+      }
+    },
+    "增加风险": {
+      "description": "A增加B的发生风险",
+      "examples": ["高肺血管阻力 → 右心衰竭风险增加"],
+      "valid_source_types": ["风险因子", "供体特征", "受体特征"],
+      "valid_target_types": ["并发症"],
+      "properties": {
+        "风险倍数": "float",
+        "阈值": "string",
+        "证据来源": "string"
+      }
+    },
+    "缓解": {
+      "description": "A缓解或减轻B",
+      "examples": ["免疫抑制治疗 → 急性排斥反应"],
+      "valid_source_types": ["药物", "治疗方案", "器械设备"],
+      "valid_target_types": ["并发症", "症状"],
+      "properties": {
+        "有效率": "string",
+        "起效时间": "string"
+      }
+    },
+    "前提条件": {
+      "description": "执行A需要先满足B",
+      "examples": ["心脏复苏 → 主动脉吻合完毕"],
+      "valid_source_types": ["手术步骤"],
+      "valid_target_types": ["手术步骤", "监测指标"],
+      "properties": {
+        "必须性": "enum[必须,建议,可选]"
+      }
+    },
+    "禁用于": {
+      "description": "A禁用于B",
+      "examples": ["环孢素 → 严重肾功能不全"],
+      "valid_source_types": ["药物", "治疗方案"],
+      "valid_target_types": ["禁忌症", "受体特征"],
+      "properties": {
+        "禁用类型": "enum[绝对禁用,相对禁用]",
+        "依据": "string"
+      }
+    },
+    "时序先于": {
+      "description": "手术步骤的时序关系",
+      "examples": ["体外循环建立 → 主动脉阻断"],
+      "valid_source_types": ["手术步骤"],
+      "valid_target_types": ["手术步骤"],
+      "properties": {
+        "时间间隔": "string",
+        "必须连续": "boolean"
+      }
+    },
+    "监测": {
+      "description": "在某个步骤或情况下需要监测某指标",
+      "examples": ["体外循环 → 血流动力学监测"],
+      "valid_source_types": ["手术步骤", "治疗方案"],
+      "valid_target_types": ["监测指标"],
+      "properties": {
+        "监测频率": "string",
+        "目标范围": "string"
+      }
+    },
+    "诊断依据": {
+      "description": "诊断某疾病的依据",
+      "examples": ["急性排斥反应 → 心肌活检病理"],
+      "valid_source_types": ["并发症"],
+      "valid_target_types": ["诊断标准", "监测指标"],
+      "properties": {
+        "敏感度": "string",
+        "特异度": "string"
+      }
+    },
+    "治疗": {
+      "description": "用某方案治疗某疾病",
+      "examples": ["甲泼尼龙冲击治疗 → 急性排斥反应"],
+      "valid_source_types": ["治疗方案", "药物"],
+      "valid_target_types": ["并发症", "疾病"],
+      "properties": {
+        "推荐等级": "enum[I,IIa,IIb,III]",
+        "证据等级": "enum[A,B,C]"
+      }
+    },
+    "部分组成": {
+      "description": "A是B的一部分",
+      "examples": ["左心房吻合 → 双腔静脉法心脏移植"],
+      "valid_source_types": ["手术步骤"],
+      "valid_target_types": ["手术步骤"],
+      "properties": {}
+    }
+  },
+  "global_properties": {
+    "来源文档": "string",
+    "章节": "string",
+    "置信度": "float",
+    "最后更新时间": "datetime",
+    "审核状态": "enum[待审核,已审核,需修正]"
+  },
+  "validation_rules": {
+    "entity_name_pattern": "^[\\u4e00-\\u9fa5a-zA-Z0-9()（）、]+$",
+    "relation_must_have_evidence": true,
+    "required_properties": ["来源文档"],
+    "max_relation_per_entity": 50
+  }
+}
