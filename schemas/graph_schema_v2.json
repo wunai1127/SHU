@@ -1,0 +1,445 @@
+{
+  "version": "2.0",
+  "description": "心脏移植双层知识图谱Schema - 概念层+实例层",
+  "changelog": {
+    "2.0": {
+      "date": "2025-01-08",
+      "changes": [
+        "新增双层图结构：ConceptNode（推理）+ InstanceNode（GNN训练）",
+        "数值特征从文本节点改为节点属性",
+        "新增时序关系支持",
+        "支持不确定性量化"
+      ]
+    },
+    "1.0": {
+      "date": "2025-01-08",
+      "changes": ["初始版本，单层图结构"]
+    }
+  },
+
+  "graph_layers": {
+    "concept_layer": {
+      "description": "概念层：用于推理、RAG检索、知识问答",
+      "node_types": ["ConceptNode"],
+      "relation_types": ["导致", "增加风险", "缓解", "前提条件", "禁用于", "时序先于"],
+      "use_cases": [
+        "RAG Agent检索：'延长缺血时间导致什么并发症？'",
+        "Medical Expert推理：'这个风险因子如何影响预后？'",
+        "知识问答：'PGD的主要风险因素有哪些？'"
+      ]
+    },
+
+    "instance_layer": {
+      "description": "实例层：用于GNN训练、风险预测、案例匹配",
+      "node_types": ["Case", "Donor", "Recipient", "Surgery", "Outcome"],
+      "relation_types": ["HAS_DONOR", "HAS_RECIPIENT", "HAS_SURGERY", "HAS_OUTCOME", "HAS_RISK_PROFILE"],
+      "use_cases": [
+        "GNN训练：预测移植成功率",
+        "案例匹配：检索相似病例",
+        "风险评分：计算个性化风险"
+      ]
+    },
+
+    "cross_layer": {
+      "description": "跨层连接：实例引用概念",
+      "relation_types": ["INSTANCE_OF", "HAS_FEATURE"]
+    }
+  },
+
+  "node_types": {
+    "ConceptNode": {
+      "description": "概念节点 - 抽象的医学知识（用于推理）",
+      "subtypes": {
+        "风险因子": {
+          "examples": ["延长缺血时间", "高PVR", "年龄不匹配"],
+          "properties": {
+            "name": "string",
+            "type": "string",
+            "definition": "string",
+            "category": "enum[供体因素,受体因素,手术因素,免疫因素]",
+            "severity": "enum[低,中,高]",
+            "threshold_definition": "string",
+            "evidence_count": "integer"
+          }
+        },
+
+        "并发症": {
+          "examples": ["原发性移植物功能障碍", "急性排斥反应", "感染"],
+          "properties": {
+            "name": "string",
+            "incidence_rate": "float",
+            "mortality_rate": "float",
+            "onset_timing": "string",
+            "ishlt_grade": "string"
+          }
+        },
+
+        "手术步骤": {
+          "examples": ["体外循环建立", "主动脉阻断", "供心植入"],
+          "properties": {
+            "name": "string",
+            "order": "integer",
+            "duration_range": "string",
+            "critical_level": "enum[低,中,高]"
+          }
+        },
+
+        "药物": {
+          "examples": ["他克莫司", "环孢素", "霉酚酸酯"],
+          "properties": {
+            "name": "string",
+            "class": "enum[免疫抑制剂,抗生素,升压药]",
+            "mechanism": "string",
+            "dosage_range": "string"
+          }
+        },
+
+        "监测指标": {
+          "examples": ["肌钙蛋白", "NT-proBNP", "PVR"],
+          "properties": {
+            "name": "string",
+            "normal_range": "string",
+            "unit": "string",
+            "monitoring_frequency": "string"
+          }
+        }
+      }
+    },
+
+    "Case": {
+      "description": "案例节点 - 真实的移植案例（GNN训练单位）",
+      "properties": {
+        "case_id": "string (UNIQUE)",
+        "surgery_date": "datetime",
+        "center": "string",
+
+        "outcome": {
+          "type": "enum[success,pgd,rejection,death]",
+          "description": "GNN预测目标（标签）"
+        },
+
+        "survival_days": "integer",
+        "graft_function": "enum[excellent,good,moderate,poor]",
+
+        "risk_score": {
+          "type": "float",
+          "description": "综合风险评分（GNN预测值）",
+          "range": "[0, 1]"
+        },
+
+        "metadata": {
+          "source": "string",
+          "data_quality": "enum[high,medium,low]"
+        }
+      }
+    },
+
+    "Donor": {
+      "description": "供体节点 - 包含GNN特征",
+      "properties": {
+        "donor_id": "string (UNIQUE)",
+
+        "demographic_features": {
+          "age": "float",
+          "gender": "enum[M,F]",
+          "weight": "float",
+          "height": "float",
+          "bmi": "float",
+          "blood_type": "enum[A,B,AB,O]"
+        },
+
+        "clinical_features": {
+          "cause_of_death": "enum[trauma,cerebrovascular,other]",
+          "donor_type": "enum[DBD,DCD]",
+          "ischemic_time": "float",
+          "cold_ischemic_time": "float",
+          "warm_ischemic_time": "float"
+        },
+
+        "cardiac_features": {
+          "lvef": "float",
+          "cardiac_output": "float",
+          "aortic_diameter": "float",
+          "left_atrial_diameter": "float",
+          "left_ventricular_hypertrophy": "boolean"
+        },
+
+        "lab_features": {
+          "troponin": "float",
+          "creatinine": "float",
+          "bilirubin": "float"
+        },
+
+        "feature_vector": {
+          "type": "array<float>",
+          "description": "GNN输入特征向量",
+          "dimension": 20
+        }
+      }
+    },
+
+    "Recipient": {
+      "description": "受体节点 - 包含GNN特征",
+      "properties": {
+        "recipient_id": "string (UNIQUE)",
+
+        "demographic_features": {
+          "age": "float",
+          "gender": "enum[M,F]",
+          "weight": "float",
+          "height": "float",
+          "bmi": "float",
+          "blood_type": "enum[A,B,AB,O]"
+        },
+
+        "diagnosis": {
+          "primary_diagnosis": "enum[DCM,ICM,CHD,other]",
+          "nyha_class": "enum[I,II,III,IV]",
+          "urgency": "enum[1A,1B,2]"
+        },
+
+        "hemodynamic_features": {
+          "pvr": "float",
+          "pvr_category": "enum[normal,borderline,elevated]",
+          "mean_pap": "float",
+          "pcwp": "float",
+          "cardiac_index": "float",
+          "lvef": "float"
+        },
+
+        "lab_features": {
+          "creatinine": "float",
+          "egfr": "float",
+          "bilirubin": "float",
+          "albumin": "float",
+          "hemoglobin": "float"
+        },
+
+        "immunology_features": {
+          "hla_a": "string",
+          "hla_b": "string",
+          "hla_dr": "string",
+          "pra": "float",
+          "donor_mismatch_count": "integer"
+        },
+
+        "feature_vector": {
+          "type": "array<float>",
+          "description": "GNN输入特征向量",
+          "dimension": 25
+        }
+      }
+    },
+
+    "Surgery": {
+      "description": "手术过程节点 - 包含手术参数",
+      "properties": {
+        "surgery_id": "string (UNIQUE)",
+        "technique": "enum[双腔静脉法,双房法,全心法,异位移植]",
+        "cpb_time": "float",
+        "aortic_clamp_time": "float",
+        "total_surgery_time": "float",
+
+        "intraoperative_events": {
+          "bleeding": "boolean",
+          "arrhythmia": "boolean",
+          "difficult_hemostasis": "boolean"
+        },
+
+        "perfusion_solution": "enum[HTK,UW,StThomas,other]",
+        "perfusion_temperature": "float",
+
+        "feature_vector": "array<float>"
+      }
+    },
+
+    "Outcome": {
+      "description": "预后节点 - 包含随访结果",
+      "properties": {
+        "outcome_id": "string",
+        "survival_status": "enum[alive,dead]",
+        "follow_up_days": "integer",
+
+        "complications": {
+          "pgd_occurred": "boolean",
+          "pgd_grade": "enum[0,1,2,3]",
+          "rejection_occurred": "boolean",
+          "rejection_grade": "string",
+          "infection_occurred": "boolean"
+        },
+
+        "graft_function_metrics": {
+          "lvef_1month": "float",
+          "lvef_1year": "float",
+          "nyha_1year": "enum[I,II,III,IV]"
+        }
+      }
+    }
+  },
+
+  "relation_types": {
+    "concept_layer_relations": {
+      "导致": {
+        "description": "因果关系（概念层）",
+        "valid_source_types": ["风险因子", "并发症"],
+        "valid_target_types": ["并发症", "不良预后"],
+        "properties": {
+          "证据强度": "enum[RCT,队列研究,病例对照,病例报告,专家共识]",
+          "优势比": "float",
+          "P值": "float",
+          "置信区间": "string",
+          "study_count": "integer",
+          "consensus_score": {
+            "type": "float",
+            "description": "专家共识程度",
+            "range": "[0, 1]"
+          },
+          "uncertainty": {
+            "type": "float",
+            "description": "不确定性量化",
+            "range": "[0, 1]"
+          }
+        }
+      },
+
+      "时序先于": {
+        "description": "时序关系",
+        "valid_source_types": ["手术步骤"],
+        "valid_target_types": ["手术步骤"],
+        "properties": {
+          "interval_minutes": "float",
+          "mandatory": "boolean",
+          "可并行": "boolean"
+        }
+      }
+    },
+
+    "instance_layer_relations": {
+      "HAS_DONOR": {
+        "description": "案例-供体关系",
+        "valid_source_types": ["Case"],
+        "valid_target_types": ["Donor"],
+        "properties": {}
+      },
+
+      "HAS_RECIPIENT": {
+        "description": "案例-受体关系",
+        "valid_source_types": ["Case"],
+        "valid_target_types": ["Recipient"],
+        "properties": {}
+      },
+
+      "HAS_SURGERY": {
+        "description": "案例-手术关系",
+        "valid_source_types": ["Case"],
+        "valid_target_types": ["Surgery"],
+        "properties": {}
+      },
+
+      "HAS_OUTCOME": {
+        "description": "案例-预后关系",
+        "valid_source_types": ["Case"],
+        "valid_target_types": ["Outcome"],
+        "properties": {}
+      },
+
+      "MATCHED_TO": {
+        "description": "供受体匹配关系",
+        "valid_source_types": ["Donor"],
+        "valid_target_types": ["Recipient"],
+        "properties": {
+          "compatibility_score": "float",
+          "weight_ratio": "float",
+          "age_difference": "float",
+          "blood_type_match": "enum[identical,compatible,incompatible]",
+          "hla_mismatch": "integer",
+          "size_match": "enum[good,acceptable,poor]"
+        }
+      },
+
+      "SIMILAR_TO": {
+        "description": "相似案例关系（用于案例检索）",
+        "valid_source_types": ["Case"],
+        "valid_target_types": ["Case"],
+        "properties": {
+          "similarity_score": "float",
+          "similarity_method": "enum[feature_distance,graph_embedding,llm_embedding]",
+          "feature_dimensions": "array<string>"
+        }
+      }
+    },
+
+    "cross_layer_relations": {
+      "HAS_RISK_FEATURE": {
+        "description": "实例引用概念风险因子",
+        "valid_source_types": ["Donor", "Recipient", "Case"],
+        "valid_target_types": ["风险因子"],
+        "properties": {
+          "feature_value": "float",
+          "threshold_exceeded": "boolean",
+          "severity": "enum[低,中,高]"
+        }
+      },
+
+      "EXPERIENCED_COMPLICATION": {
+        "description": "案例发生并发症",
+        "valid_source_types": ["Case"],
+        "valid_target_types": ["并发症"],
+        "properties": {
+          "onset_day": "integer",
+          "severity_grade": "string",
+          "resolved": "boolean"
+        }
+      }
+    }
+  },
+
+  "gnn_configuration": {
+    "node_feature_dimensions": {
+      "Donor": 20,
+      "Recipient": 25,
+      "Surgery": 10,
+      "Case": 5
+    },
+
+    "feature_extraction_order": {
+      "Donor": [
+        "age", "weight", "bmi", "ischemic_time", "cold_ischemic_time",
+        "lvef", "cardiac_output", "aortic_diameter",
+        "troponin", "creatinine", "bilirubin",
+        "gender_encoded", "blood_type_encoded", "cause_of_death_encoded",
+        "donor_type_encoded", "left_ventricular_hypertrophy_encoded"
+      ],
+
+      "Recipient": [
+        "age", "weight", "bmi", "pvr", "mean_pap", "pcwp",
+        "cardiac_index", "lvef", "creatinine", "egfr",
+        "bilirubin", "albumin", "hemoglobin", "pra",
+        "donor_mismatch_count",
+        "gender_encoded", "blood_type_encoded", "primary_diagnosis_encoded",
+        "nyha_class_encoded", "urgency_encoded"
+      ]
+    },
+
+    "normalization": {
+      "method": "min_max",
+      "ranges": {
+        "age": [0, 100],
+        "ischemic_time": [0, 8],
+        "pvr": [0, 10],
+        "lvef": [0, 100],
+        "creatinine": [0, 5]
+      }
+    }
+  },
+
+  "data_quality": {
+    "required_fields": {
+      "Donor": ["age", "ischemic_time"],
+      "Recipient": ["age", "pvr", "lvef"],
+      "Case": ["outcome"]
+    },
+
+    "data_completeness_threshold": 0.8
+  }
+}
