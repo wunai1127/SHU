@@ -1,0 +1,101 @@
+{
+  "description": "心脏移植领域医学术语同义词映射",
+  "version": "1.0",
+  "synonyms": {
+    "原发性移植物功能障碍": [
+      "PGD",
+      "Primary Graft Dysfunction",
+      "原发性移植物失功",
+      "移植物原发性功能不全"
+    ],
+    "肺血管阻力": [
+      "PVR",
+      "Pulmonary Vascular Resistance",
+      "肺动脉阻力"
+    ],
+    "左心室射血分数": [
+      "LVEF",
+      "Left Ventricular Ejection Fraction",
+      "左室射血分数"
+    ],
+    "体外循环": [
+      "CPB",
+      "Cardiopulmonary Bypass",
+      "心肺转流"
+    ],
+    "缺血时间": [
+      "Ischemic Time",
+      "冷缺血时间",
+      "热缺血时间",
+      "总缺血时间"
+    ],
+    "排斥反应": [
+      "Rejection",
+      "急性排斥",
+      "慢性排斥",
+      "抗体介导排斥",
+      "细胞介导排斥",
+      "AMR",
+      "ACR"
+    ],
+    "免疫抑制剂": [
+      "Immunosuppressant",
+      "免疫抑制药物"
+    ],
+    "他克莫司": [
+      "Tacrolimus",
+      "FK506",
+      "普乐可复"
+    ],
+    "环孢素": [
+      "Cyclosporine",
+      "CsA",
+      "新山地明"
+    ],
+    "霉酚酸酯": [
+      "Mycophenolate Mofetil",
+      "MMF",
+      "骁悉"
+    ],
+    "心内膜心肌活检": [
+      "EMB",
+      "Endomyocardial Biopsy",
+      "心肌活检"
+    ],
+    "国际心肺移植学会": [
+      "ISHLT",
+      "International Society for Heart and Lung Transplantation"
+    ],
+    "供心": [
+      "Donor Heart",
+      "供体心脏",
+      "移植物"
+    ],
+    "受者": [
+      "Recipient",
+      "受体",
+      "接受者"
+    ],
+    "主动脉阻断": [
+      "Aortic Cross-Clamp",
+      "主动脉钳夹"
+    ],
+    "双腔静脉法": [
+      "Bicaval Technique",
+      "双腔技术"
+    ],
+    "全心法": [
+      "Total Heart Method",
+      "全心移植"
+    ],
+    "双房法": [
+      "Biatrial Technique",
+      "双房技术"
+    ],
+    "心脏停搏液": [
+      "Cardioplegia",
+      "停搏液",
+      "心停液"
+    ]
+  }
+}

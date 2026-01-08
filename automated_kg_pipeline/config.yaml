@@ -1,0 +1,152 @@
+# =====================================================
+# 心脏移植知识图谱自动化构建配置
+# =====================================================
+
+# LLM配置 - DeepSeek推荐（中文优化+低成本）
+llm:
+  provider: "deepseek"  # 可选: openai, deepseek, local
+
+  # DeepSeek配置（推荐：中文优化，成本~50元完成20000篇）
+  deepseek:
+    api_key: "YOUR_DEEPSEEK_API_KEY"  # ← 请替换为您的DeepSeek API密钥
+    model: "deepseek-chat"
+    base_url: "https://api.deepseek.com/v1"
+    max_tokens: 2048
+    temperature: 0.1  # 低温度保证抽取稳定性
+
+  # OpenAI配置（备选）
+  openai:
+    api_key: "YOUR_OPENAI_API_KEY"
+    model: "gpt-4-turbo"
+    base_url: "https://api.openai.com/v1"
+    max_tokens: 2048
+    temperature: 0.1
+
+  # 本地模型配置（需要GPU）
+  local:
+    model_path: "meta-llama/Meta-Llama-3.1-8B-Instruct"
+    device: "cuda:0"
+    use_8bit: true  # 启用8bit量化节省显存
+    max_new_tokens: 2048
+
+# 数据源配置
+data:
+  # ← 请将您的20000+篇文章JSON文件放到此目录
+  input_directory: "/home/user/SHU/data/medical_abstracts"
+  filename_pattern: "*.json"  # 如果是jsonl格式，改为 "*.jsonl"
+  expected_format: "json"  # json / jsonl / json.gz
+  encoding: "utf-8"
+
+  # 数据字段映射（请根据您的JSON结构调整）
+  field_mapping:
+    text_field: "abstract"  # ← JSON中包含摘要文本的字段名
+    id_field: "pmid"        # ← 文章唯一标识符字段名
+    metadata_fields:        # 需要保留的元数据
+      - "title"
+      - "authors"
+      - "journal"
+      - "year"
+      - "doi"
+
+# Schema配置
+schema:
+  schema_file: "/home/user/SHU/schemas/chinese_medical_kg_schema.json"
+  enable_schema_validation: true
+
+  # 实体归一化配置
+  normalization:
+    enable_umls: false  # Phase 1不启用UMLS，避免复杂性
+    enable_abbreviation_expansion: true  # PGD → 原发性移植物功能障碍
+    custom_synonyms_file: "/home/user/SHU/schemas/medical_synonyms.json"
+
+# 抽取配置
+extraction:
+  # 并行处理（根据您的GPU数量自动调整）
+  num_workers: 4  # 4个并行worker
+  batch_size: 8   # 每批8篇文章
+  total_shards: 20  # 20000篇文章分成20个分片，每个分片1000篇
+
+  # 质量控制
+  min_confidence: 0.7  # 低于此置信度的三元组将被过滤
+  max_triples_per_article: 100
+  enable_relation_validation: true  # 验证关系是否符合schema约束
+
+  # 缓存策略（断点续传）
+  enable_caching: true
+  cache_directory: "/home/user/SHU/cache/extraction_cache"
+  resume_from_checkpoint: true  # 中断后可恢复，不重复处理
+
+# Neo4j配置
+neo4j:
+  uri: "bolt://localhost:7687"  # 如果是远程Neo4j，修改为远程地址
+  username: "neo4j"
+  password: "YOUR_NEO4J_PASSWORD"  # ← 请替换为您的Neo4j密码
+  database: "heart_transplant_kg"
+
+  # 批量导入优化
+  batch_import:
+    enabled: true
+    batch_size: 5000  # 每批写入5000个节点/关系
+    use_apoc: false   # 如果安装了APOC插件，可改为true加速
+
+  # 索引配置（自动创建）
+  indexes:
+    - label: "Entity"
+      properties: ["name", "type"]
+    - label: "Relation"
+      properties: ["type"]
+
+  # 约束配置（自动创建）
+  constraints:
+    - label: "Entity"
+      property: "id"
+      type: "UNIQUE"
+
+# 质量验证配置
+validation:
+  enable_automated_validation: true
+
+  # 统计检查
+  statistical_checks:
+    min_entities_per_article: 5
+    max_entities_per_article: 50
+    min_relations_per_article: 3
+    expected_entity_type_distribution:  # 预期分布（警告阈值）
+      风险因子: 0.15
+      并发症: 0.20
+      药物: 0.10
+
+  # 采样验证（生成人工检查样本）
+  sampling_validation:
+    sample_size: 100  # 随机抽样100个三元组
+    output_file: "/home/user/SHU/validation/manual_review_samples.json"
+
+  # 知识图谱完整性检查
+  kg_integrity_checks:
+    check_orphan_nodes: true  # 检查孤立节点
+    check_bidirectional_relations: true  # 检查双向关系一致性
+    check_temporal_consistency: true  # 检查时序关系是否有环
+
+# 输出配置
+output:
+  # 中间结果
+  save_intermediate_results: true
+  intermediate_directory: "/home/user/SHU/output/intermediate"
+
+  # 最终输出
+  final_output_directory: "/home/user/SHU/output/final"
+  generate_summary_report: true
+  generate_visualization: true  # 生成KG统计可视化
+
+  # 导出格式
+  export_formats:
+    - "neo4j"       # 直接写入Neo4j
+    - "csv"         # 导出CSV用于备份
+    # - "graphml"   # 导出GraphML用于Gephi等可视化工具（可选）
+
+# 日志配置
+logging:
+  level: "INFO"  # DEBUG / INFO / WARNING / ERROR
+  log_file: "/home/user/SHU/logs/kg_construction.log"
+  enable_progress_bar: true
+  enable_telegram_notification: false  # 完成后发送Telegram通知（可选）
