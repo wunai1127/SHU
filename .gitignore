@@ -75,3 +75,4 @@ data/medical_abstracts/*.jsonl
 # Neo4j数据
 *.db
 *.lck
+__MACOSX/
