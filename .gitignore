@@ -1,0 +1,77 @@
+# 敏感配置文件
+automated_kg_pipeline/config.yaml
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 虚拟环境
+venv/
+ENV/
+env/
+
+# 缓存和临时文件
+cache/
+*.cache
+.cache/
+*.tmp
+*.temp
+
+# 日志文件
+logs/
+*.log
+
+# 输出文件
+output/
+*.csv
+*.graphml
+
+# 验证文件
+validation/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 模型文件（通常很大）
+*.pt
+*.pth
+*.bin
+*.onnx
+models/
+
+# 数据文件（避免大文件进入git）
+data/medical_abstracts/*.json
+data/medical_abstracts/*.jsonl
+!data/medical_abstracts/sample_format.json
+
+# Neo4j数据
+*.db
+*.lck
