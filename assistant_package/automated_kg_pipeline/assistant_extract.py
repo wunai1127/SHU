@@ -1,12 +1,7 @@
 #!/usr/bin/env python3
 """
-健壮的知识抽取脚本 - 支持断点续传和API限流处理
-Features:
-- 智能重试策略（指数退避：1s → 10min）
-- API限流检测和自适应等待
-- 余额不足检测和优雅关闭
-- 基于检查点的恢复能力
-- 自动使用缓存结果
+助手抽取脚本 - 处理后半部分数据（12217-24432）
+与主脚本使用不同的检查点文件，避免冲突
 """
 
 import json
@@ -23,7 +18,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/home/user/SHU/logs/robust_extraction.log'),
+        logging.FileHandler('logs/assistant_extraction.log'),
         logging.StreamHandler()
     ]
 )
@@ -50,9 +45,10 @@ with open(schema_path, 'r') as f:
 entity_types = list(schema['entity_types'].keys())
 relation_types = list(schema['relation_types'].keys())
 
-# 进度检查点文件
-CHECKPOINT_FILE = Path(__file__).parent.parent / "cache/extraction_checkpoint.json"
+# 助手专用检查点文件
+CHECKPOINT_FILE = Path(__file__).parent.parent / "cache/assistant_checkpoint.json"
 
+# ====== 以下代码与robust_extract.py完全相同 ======
 
 def load_checkpoint():
     """加载检查点"""
@@ -128,11 +124,10 @@ def extract_knowledge(text: str, article_id: str):
 """
 
     # 智能重试策略：逐步增加等待时间
-    retry_delays = [1, 3, 5, 10, 30, 60, 120, 300, 600]  # 最长等10分钟
+    retry_delays = [1, 3, 5, 10, 30, 60, 120, 300, 600]
 
     for attempt in range(len(retry_delays)):
         try:
-            # 基础限流：每次请求前等待1秒
             time.sleep(1)
 
             response = client.chat.completions.create(
@@ -147,7 +142,7 @@ def extract_knowledge(text: str, article_id: str):
 
             result = response.choices[0].message.content
 
-            # 保存原始输出（关键：避免重复API调用）
+            # 保存原始输出
             cache_dir = Path(__file__).parent.parent / "cache/llm_raw_outputs"
             cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -183,13 +178,11 @@ def extract_knowledge(text: str, article_id: str):
         except Exception as e:
             error_msg = str(e)
 
-            # 余额不足 - 立即停止并保存进度
             if is_quota_exceeded_error(error_msg):
                 logger.error(f"❌ 余额不足！已保存进度，充值后可继续运行")
                 logger.error(f"   错误信息: {error_msg}")
                 raise Exception("QUOTA_EXCEEDED")
 
-            # API限流或503错误 - 长时间等待后重试
             if is_rate_limit_error(error_msg):
                 if attempt < len(retry_delays) - 1:
                     wait_time = retry_delays[attempt]
@@ -200,8 +193,6 @@ def extract_knowledge(text: str, article_id: str):
                 else:
                     logger.error(f"❌ 达到最大重试次数，跳过文章 {article_id}")
                     return {"entities": [], "relations": []}
-
-            # 其他错误 - 快速重试
             else:
                 if attempt < 3:
                     wait_time = 2 ** attempt
@@ -215,16 +206,14 @@ def extract_knowledge(text: str, article_id: str):
 
 
 def main():
-    # 命令行参数：--max-count 12216（处理一半）
-    max_count = None
-    if "--max-count" in sys.argv:
-        idx = sys.argv.index("--max-count")
-        max_count = int(sys.argv[idx + 1])
-
     # 加载数据
     data_path = Path(__file__).parent.parent / "data/medical_abstracts/heart_tx_all_merged_v8.json"
     with open(data_path, 'r') as f:
         data = json.load(f)
+
+    # 只处理后半部分：从索引12216开始
+    START_INDEX = 12216
+    data = data[START_INDEX:]
 
     # 加载检查点
     checkpoint = load_checkpoint()
@@ -235,13 +224,11 @@ def main():
 
     total = len(data)
     logger.info("="*60)
-    logger.info("健壮知识抽取 - 支持断点续传和限流处理")
+    logger.info("助手知识抽取 - 处理后半部分（12217-24432）")
     logger.info("="*60)
-    logger.info(f"总文章数: {total}")
+    logger.info(f"总文章数: {total} (原始数据的后半部分)")
     logger.info(f"已处理: {len(processed_ids)}")
     logger.info(f"剩余: {total - len(processed_ids)}")
-    if max_count:
-        logger.info(f"⚠️  限制处理数量: {max_count} 篇（处理到此自动停止）")
     logger.info(f"开始时间: {checkpoint['start_time']}")
     logger.info("="*60)
 
@@ -260,14 +247,9 @@ def main():
             if article_id in processed_ids:
                 continue
 
-            # 检查是否达到最大处理数量
-            if max_count and stats['processed'] >= max_count:
-                logger.info(f"\n✓ 已达到最大处理数量 {max_count} 篇，自动停止")
-                break
-
             text = article['text']
 
-            logger.info(f"\n[{i+1}/{total}] 处理文章: {article_id}")
+            logger.info(f"\n[{i+1+START_INDEX}/{total+START_INDEX}] 处理文章: {article_id}")
             logger.info(f"  文本长度: {len(text)} 字符")
 
             result = extract_knowledge(text, article_id)
