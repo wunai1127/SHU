@@ -43,7 +43,7 @@ client = OpenAI(
 )
 
 # 加载Schema
-schema_path = Path(__file__).parent.parent / "schemas/chinese_medical_kg_schema.json"
+schema_path = Path(__file__).parent.parent / "schemas/english_medical_kg_schema.json"
 with open(schema_path, 'r') as f:
     schema = json.load(f)
 
@@ -100,21 +100,22 @@ def extract_knowledge(text: str, article_id: str):
             return json.load(f)
 
     # 构造Prompt
-    prompt = f"""请从以下医学文献中抽取心脏移植相关的知识三元组。
+    prompt = f"""Extract heart transplantation-related knowledge triples from the following medical literature.
 
-**实体类型**: {', '.join(entity_types)}
-**关系类型**: {', '.join(relation_types)}
+**Entity Types**: {', '.join(entity_types)}
+**Relation Types**: {', '.join(relation_types)}
 
-**文本**:
+**Text**:
 {text[:2000]}
 
-**要求**:
-1. 抽取所有相关的实体和关系
-2. 如果有统计数据（优势比、p值），必须包含
-3. 如果有证据强度信息（RCT、队列研究等），必须标注
-4. 输出严格的JSON格式
+**Requirements**:
+1. Extract all relevant entities and relations
+2. If there are statistical data (odds ratio, p-value), they MUST be included
+3. If there is evidence strength information (RCT, cohort study, etc.), it MUST be annotated
+4. Output MUST be in strict JSON format
+5. IMPORTANT: Keep all entity names and relation terms in ENGLISH as they appear in the source text
 
-**输出格式**:
+**Output Format**:
 {{
   "entities": [
     {{"name": "...", "type": "...", "properties": {{}}}}
@@ -124,7 +125,7 @@ def extract_knowledge(text: str, article_id: str):
   ]
 }}
 
-请输出JSON:
+Please output JSON:
 """
 
     # 智能重试策略：逐步增加等待时间
@@ -138,7 +139,7 @@ def extract_knowledge(text: str, article_id: str):
             response = client.chat.completions.create(
                 model=config['llm']['deepseek']['model'],
                 messages=[
-                    {"role": "system", "content": "你是医学信息抽取专家，专注于心脏移植领域。"},
+                    {"role": "system", "content": "You are a medical information extraction expert specializing in heart transplantation. Extract entities and relations exactly as they appear in the source text, keeping all terms in English."},
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=config['llm']['deepseek']['max_tokens'],
