@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-助手抽取脚本 - 处理后半部分数据（12217-24432）
-与主脚本使用不同的检查点文件，避免冲突
+VSCode抽取脚本 - 处理第二个1/4数据（12217-18324）
+与主端、助手使用不同的检查点，完全无冲突
 """
 
 import json
@@ -18,7 +18,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('logs/assistant_extraction.log'),
+        logging.FileHandler('logs/vscode_extraction.log'),
         logging.StreamHandler()
     ]
 )
@@ -45,10 +45,9 @@ with open(schema_path, 'r') as f:
 entity_types = list(schema['entity_types'].keys())
 relation_types = list(schema['relation_types'].keys())
 
-# 助手专用检查点文件
-CHECKPOINT_FILE = Path(__file__).parent.parent / "cache/assistant_checkpoint.json"
+# VSCode专用检查点文件（避免冲突）
+CHECKPOINT_FILE = Path(__file__).parent.parent / "cache/vscode_checkpoint.json"
 
-# ====== 以下代码与robust_extract.py完全相同 ======
 
 def load_checkpoint():
     """加载检查点"""
@@ -123,7 +122,7 @@ def extract_knowledge(text: str, article_id: str):
 请输出JSON:
 """
 
-    # 智能重试策略：逐步增加等待时间
+    # 智能重试策略
     retry_delays = [1, 3, 5, 10, 30, 60, 120, 300, 600]
 
     for attempt in range(len(retry_delays)):
@@ -211,9 +210,10 @@ def main():
     with open(data_path, 'r') as f:
         data = json.load(f)
 
-    # 助手负责：18325-24432（第三个1/4 + 第四个1/4）
-    START_INDEX = 18324  # 从第18325篇开始（索引18324）
-    data = data[START_INDEX:]
+    # VSCode负责：12217-18324（第二个1/4）
+    START_INDEX = 12216  # 从第12217篇开始（索引12216）
+    END_INDEX = 18324    # 到第18324篇结束（索引18323）
+    data = data[START_INDEX:END_INDEX]
 
     # 加载检查点
     checkpoint = load_checkpoint()
@@ -224,9 +224,9 @@ def main():
 
     total = len(data)
     logger.info("="*60)
-    logger.info("助手知识抽取 - 处理后半部分（18325-24432）")
+    logger.info("VSCode知识抽取 - 处理第二个1/4（12217-18324）")
     logger.info("="*60)
-    logger.info(f"总文章数: {total} (后半部分，约1/4)")
+    logger.info(f"总文章数: {total} (第二个1/4)")
     logger.info(f"已处理: {len(processed_ids)}")
     logger.info(f"剩余: {total - len(processed_ids)}")
     logger.info(f"开始时间: {checkpoint['start_time']}")
@@ -249,7 +249,7 @@ def main():
 
             text = article['text']
 
-            logger.info(f"\n[{i+1+START_INDEX}/{total+START_INDEX}] 处理文章: {article_id}")
+            logger.info(f"\n[{i+1+START_INDEX}/{END_INDEX}] 处理文章: {article_id}")
             logger.info(f"  文本长度: {len(text)} 字符")
 
             result = extract_knowledge(text, article_id)

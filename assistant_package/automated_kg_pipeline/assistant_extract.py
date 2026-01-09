@@ -211,8 +211,8 @@ def main():
     with open(data_path, 'r') as f:
         data = json.load(f)
 
-    # 只处理后半部分：从索引12216开始
-    START_INDEX = 12216
+    # 助手负责：18325-24432（第三个1/4 + 第四个1/4）
+    START_INDEX = 18324  # 从第18325篇开始（索引18324）
     data = data[START_INDEX:]
 
     # 加载检查点
@@ -224,9 +224,9 @@ def main():
 
     total = len(data)
     logger.info("="*60)
-    logger.info("助手知识抽取 - 处理后半部分（12217-24432）")
+    logger.info("助手知识抽取 - 处理后半部分（18325-24432）")
     logger.info("="*60)
-    logger.info(f"总文章数: {total} (原始数据的后半部分)")
+    logger.info(f"总文章数: {total} (后半部分，约1/4)")
     logger.info(f"已处理: {len(processed_ids)}")
     logger.info(f"剩余: {total - len(processed_ids)}")
     logger.info(f"开始时间: {checkpoint['start_time']}")
