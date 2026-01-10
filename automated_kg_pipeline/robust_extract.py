@@ -36,10 +36,12 @@ with open(config_path, 'r') as f:
 
 # 初始化OpenAI客户端
 import httpx
+# 增加timeout：连接10秒，读取180秒（代理可能很慢）
+timeout = httpx.Timeout(10.0, read=180.0)
 client = OpenAI(
     api_key=config['llm']['deepseek']['api_key'],
     base_url=config['llm']['deepseek']['base_url'],
-    http_client=httpx.Client(verify=False, timeout=60.0)
+    http_client=httpx.Client(verify=False, timeout=timeout)
 )
 
 # 加载Schema
@@ -87,6 +89,16 @@ def is_quota_exceeded_error(error_msg: str) -> bool:
     ]
     error_str = str(error_msg).lower()
     return any(keyword in error_str for keyword in quota_keywords)
+
+
+def is_timeout_error(error_msg: str) -> bool:
+    """判断是否为超时错误"""
+    timeout_keywords = [
+        'timeout', 'timed out', 'time out',
+        'read timeout', 'connection timeout'
+    ]
+    error_str = str(error_msg).lower()
+    return any(keyword in error_str for keyword in timeout_keywords)
 
 
 def extract_knowledge(text: str, article_id: str):
@@ -190,11 +202,12 @@ Please output JSON:
                 logger.error(f"   错误信息: {error_msg}")
                 raise Exception("QUOTA_EXCEEDED")
 
-            # API限流或503错误 - 长时间等待后重试
-            if is_rate_limit_error(error_msg):
+            # API限流/503/Timeout错误 - 长时间等待后重试
+            if is_rate_limit_error(error_msg) or is_timeout_error(error_msg):
                 if attempt < len(retry_delays) - 1:
                     wait_time = retry_delays[attempt]
-                    logger.warning(f"⚠️  API限流/503错误，等待{wait_time}秒后重试 (尝试 {attempt+1}/{len(retry_delays)})")
+                    error_type = "Timeout" if is_timeout_error(error_msg) else "API限流/503"
+                    logger.warning(f"⚠️  {error_type}错误，等待{wait_time}秒后重试 (尝试 {attempt+1}/{len(retry_delays)})")
                     logger.warning(f"   错误: {error_msg[:200]}")
                     time.sleep(wait_time)
                     continue
