@@ -1,14 +1,14 @@
 """
-归一化处理入口脚本
+Entity Normalization Entry Script
 
-完整的实体归一化流程，包含：
-1. 相似实体检测（KNN + WCC）
-2. 实体消歧（字符串召回 + 向量重排 + NIL检测）
-3. 实体对齐（冲突检测 + LLM解决）
-4. 实体合并
-5. 多跳关系发现
+Complete entity normalization workflow including:
+1. Similar entity detection (KNN + WCC)
+2. Entity disambiguation (string recall + vector rerank + NIL detection)
+3. Entity alignment (conflict detection + LLM resolution)
+4. Entity merging
+5. Multi-hop relation discovery
 
-使用方法:
+Usage:
     from graphrag_agent.graph.processing.normalize import EntityNormalizer
     normalizer = EntityNormalizer()
     result = normalizer.normalize()
@@ -32,38 +32,38 @@ from graphrag_agent.graph.processing.multi_hop_relation import MultiHopRelationD
 
 @dataclass
 class NormalizationConfig:
-    """归一化配置参数"""
-    # 相似实体检测
+    """Normalization configuration parameters"""
+    # Similar entity detection
     enable_similar_detection: bool = True
     similarity_threshold: float = 0.8
 
-    # 实体消歧
+    # Entity disambiguation
     enable_disambiguation: bool = True
 
-    # 实体对齐
+    # Entity alignment
     enable_alignment: bool = True
 
-    # 实体合并
+    # Entity merging
     enable_merge: bool = True
     merge_batch_size: int = 20
     merge_max_workers: int = 4
 
-    # 多跳关系发现
+    # Multi-hop relation discovery
     enable_multi_hop: bool = True
     multi_hop_max_depth: int = 3
     multi_hop_min_confidence: float = 0.5
 
-    # 性能参数
+    # Performance parameters
     batch_size: int = 500
     verbose: bool = True
 
 
 @dataclass
 class NormalizationResult:
-    """归一化结果"""
+    """Normalization result"""
     success: bool = False
 
-    # 各阶段统计
+    # Stage statistics
     similar_entities_detected: int = 0
     communities_found: int = 0
     entities_disambiguated: int = 0
@@ -71,43 +71,43 @@ class NormalizationResult:
     entities_merged: int = 0
     multi_hop_relations_found: int = 0
 
-    # 性能统计
+    # Performance statistics
     total_time: float = 0.0
     stage_times: Dict[str, float] = field(default_factory=dict)
 
-    # 错误信息
+    # Error messages
     errors: List[str] = field(default_factory=list)
 
 
 class EntityNormalizer:
     """
-    实体归一化器
+    Entity Normalizer
 
-    整合所有归一化组件，提供完整的实体归一化流程
+    Integrates all normalization components to provide a complete entity normalization workflow
 
-    归一化流程：
-    1. 相似实体检测 - 使用KNN和WCC算法找出相似实体组
-    2. 实体消歧 - 为每个实体设置canonical_id指向规范实体
-    3. 实体对齐 - 解决同一canonical下的冲突
-    4. 实体合并 - 将重复实体合并为一个
-    5. 多跳关系发现 - 发现潜在的间接关系
+    Normalization workflow:
+    1. Similar entity detection - Use KNN and WCC algorithms to find similar entity groups
+    2. Entity disambiguation - Set canonical_id for each entity pointing to canonical entity
+    3. Entity alignment - Resolve conflicts under the same canonical
+    4. Entity merging - Merge duplicate entities into one
+    5. Multi-hop relation discovery - Discover potential indirect relationships
     """
 
     def __init__(self, config: Optional[NormalizationConfig] = None):
         """
-        初始化归一化器
+        Initialize normalizer
 
         Args:
-            config: 归一化配置，为None时使用默认配置
+            config: Normalization config, uses default if None
         """
         self.config = config or NormalizationConfig()
         self.console = Console()
         self.graph = connection_manager.get_connection()
 
-        # 初始化结果
+        # Initialize result
         self.result = NormalizationResult()
 
-        # 延迟初始化组件
+        # Lazy initialization of components
         self._similar_detector = None
         self._disambiguator = None
         self._aligner = None
@@ -116,7 +116,7 @@ class EntityNormalizer:
 
     @property
     def similar_detector(self) -> SimilarEntityDetector:
-        """相似实体检测器"""
+        """Similar entity detector"""
         if self._similar_detector is None:
             gds_config = GDSConfig(
                 similarity_threshold=self.config.similarity_threshold
@@ -126,21 +126,21 @@ class EntityNormalizer:
 
     @property
     def disambiguator(self) -> EntityDisambiguator:
-        """实体消歧器"""
+        """Entity disambiguator"""
         if self._disambiguator is None:
             self._disambiguator = EntityDisambiguator()
         return self._disambiguator
 
     @property
     def aligner(self) -> EntityAligner:
-        """实体对齐器"""
+        """Entity aligner"""
         if self._aligner is None:
             self._aligner = EntityAligner()
         return self._aligner
 
     @property
     def merger(self) -> EntityMerger:
-        """实体合并器"""
+        """Entity merger"""
         if self._merger is None:
             self._merger = EntityMerger(
                 batch_size=self.config.merge_batch_size,
@@ -150,7 +150,7 @@ class EntityNormalizer:
 
     @property
     def multi_hop_discoverer(self) -> MultiHopRelationDiscoverer:
-        """多跳关系发现器"""
+        """Multi-hop relation discoverer"""
         if self._multi_hop_discoverer is None:
             self._multi_hop_discoverer = MultiHopRelationDiscoverer(
                 max_depth=self.config.multi_hop_max_depth,
@@ -159,7 +159,7 @@ class EntityNormalizer:
         return self._multi_hop_discoverer
 
     def _create_progress(self) -> Progress:
-        """创建进度显示器"""
+        """Create progress display"""
         return Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
@@ -169,20 +169,20 @@ class EntityNormalizer:
         )
 
     def _display_stage_header(self, stage: str):
-        """显示阶段标题"""
+        """Display stage header"""
         if self.config.verbose:
             self.console.print(f"\n[bold cyan]{'='*60}[/bold cyan]")
             self.console.print(f"[bold cyan]{stage}[/bold cyan]")
             self.console.print(f"[bold cyan]{'='*60}[/bold cyan]\n")
 
     def _display_results_table(self, title: str, data: Dict[str, Any]):
-        """显示结果表格"""
+        """Display results table"""
         if not self.config.verbose:
             return
 
         table = Table(title=title, show_header=True)
-        table.add_column("指标", style="cyan")
-        table.add_column("值", justify="right")
+        table.add_column("Metric", style="cyan")
+        table.add_column("Value", justify="right")
 
         for key, value in data.items():
             table.add_row(str(key), str(value))
@@ -191,37 +191,37 @@ class EntityNormalizer:
 
     def normalize(self) -> NormalizationResult:
         """
-        执行完整的归一化流程
+        Execute complete normalization workflow
 
         Returns:
-            NormalizationResult: 归一化结果
+            NormalizationResult: Normalization result
         """
         start_time = time.time()
 
         if self.config.verbose:
             self.console.print(Panel(
-                "[bold cyan]开始实体归一化流程[/bold cyan]",
+                "[bold cyan]Starting Entity Normalization Workflow[/bold cyan]",
                 border_style="cyan"
             ))
 
         try:
-            # 阶段1: 相似实体检测
+            # Stage 1: Similar entity detection
             if self.config.enable_similar_detection:
                 self._run_similar_detection()
 
-            # 阶段2: 实体消歧
+            # Stage 2: Entity disambiguation
             if self.config.enable_disambiguation:
                 self._run_disambiguation()
 
-            # 阶段3: 实体对齐
+            # Stage 3: Entity alignment
             if self.config.enable_alignment:
                 self._run_alignment()
 
-            # 阶段4: 实体合并
+            # Stage 4: Entity merging
             if self.config.enable_merge:
                 self._run_merge()
 
-            # 阶段5: 多跳关系发现
+            # Stage 5: Multi-hop relation discovery
             if self.config.enable_multi_hop:
                 self._run_multi_hop_discovery()
 
@@ -229,7 +229,7 @@ class EntityNormalizer:
 
         except Exception as e:
             self.result.errors.append(str(e))
-            self.console.print(f"[red]归一化过程出错: {e}[/red]")
+            self.console.print(f"[red]Normalization error: {e}[/red]")
 
         finally:
             self.result.total_time = time.time() - start_time
@@ -238,155 +238,155 @@ class EntityNormalizer:
         return self.result
 
     def _run_similar_detection(self):
-        """运行相似实体检测"""
-        self._display_stage_header("阶段1: 相似实体检测")
+        """Run similar entity detection"""
+        self._display_stage_header("Stage 1: Similar Entity Detection")
         stage_start = time.time()
 
         try:
             duplicates, stats = self.similar_detector.process_entities()
 
             self.result.similar_entities_detected = len(duplicates)
-            self.result.communities_found = stats.get('社区数量', 0)
+            self.result.communities_found = stats.get('communityCount', stats.get('community_count', 0))
 
-            self._display_results_table("相似实体检测结果", {
-                "候选实体组": len(duplicates),
-                "社区数量": self.result.communities_found,
-                "关系数量": stats.get('关系数量', 0)
+            self._display_results_table("Similar Entity Detection Results", {
+                "Candidate Entity Groups": len(duplicates),
+                "Communities Found": self.result.communities_found,
+                "Relationships": stats.get('relationshipsWritten', stats.get('relationships', 0))
             })
 
         except Exception as e:
-            self.result.errors.append(f"相似实体检测失败: {e}")
-            self.console.print(f"[yellow]警告: 相似实体检测失败 - {e}[/yellow]")
+            self.result.errors.append(f"Similar entity detection failed: {e}")
+            self.console.print(f"[yellow]Warning: Similar entity detection failed - {e}[/yellow]")
 
         finally:
-            self.result.stage_times['相似实体检测'] = time.time() - stage_start
+            self.result.stage_times['similar_detection'] = time.time() - stage_start
 
     def _run_disambiguation(self):
-        """运行实体消歧"""
-        self._display_stage_header("阶段2: 实体消歧")
+        """Run entity disambiguation"""
+        self._display_stage_header("Stage 2: Entity Disambiguation")
         stage_start = time.time()
 
         try:
             disambiguated = self.disambiguator.apply_to_graph()
             self.result.entities_disambiguated = disambiguated
 
-            self._display_results_table("实体消歧结果", {
-                "消歧的实体数": disambiguated,
-                "耗时": f"{time.time() - stage_start:.2f}秒"
+            self._display_results_table("Entity Disambiguation Results", {
+                "Entities Disambiguated": disambiguated,
+                "Time Elapsed": f"{time.time() - stage_start:.2f}s"
             })
 
         except Exception as e:
-            self.result.errors.append(f"实体消歧失败: {e}")
-            self.console.print(f"[yellow]警告: 实体消歧失败 - {e}[/yellow]")
+            self.result.errors.append(f"Entity disambiguation failed: {e}")
+            self.console.print(f"[yellow]Warning: Entity disambiguation failed - {e}[/yellow]")
 
         finally:
-            self.result.stage_times['实体消歧'] = time.time() - stage_start
+            self.result.stage_times['disambiguation'] = time.time() - stage_start
 
     def _run_alignment(self):
-        """运行实体对齐"""
-        self._display_stage_header("阶段3: 实体对齐")
+        """Run entity alignment"""
+        self._display_stage_header("Stage 3: Entity Alignment")
         stage_start = time.time()
 
         try:
             align_result = self.aligner.align_all()
             self.result.entities_aligned = align_result.get('entities_aligned', 0)
 
-            self._display_results_table("实体对齐结果", {
-                "处理的分组数": align_result.get('groups_processed', 0),
-                "检测到的冲突": align_result.get('conflicts_detected', 0),
-                "对齐的实体数": self.result.entities_aligned,
-                "耗时": f"{align_result.get('elapsed_time', 0):.2f}秒"
+            self._display_results_table("Entity Alignment Results", {
+                "Groups Processed": align_result.get('groups_processed', 0),
+                "Conflicts Detected": align_result.get('conflicts_detected', 0),
+                "Entities Aligned": self.result.entities_aligned,
+                "Time Elapsed": f"{align_result.get('elapsed_time', 0):.2f}s"
             })
 
         except Exception as e:
-            self.result.errors.append(f"实体对齐失败: {e}")
-            self.console.print(f"[yellow]警告: 实体对齐失败 - {e}[/yellow]")
+            self.result.errors.append(f"Entity alignment failed: {e}")
+            self.console.print(f"[yellow]Warning: Entity alignment failed - {e}[/yellow]")
 
         finally:
-            self.result.stage_times['实体对齐'] = time.time() - stage_start
+            self.result.stage_times['alignment'] = time.time() - stage_start
 
     def _run_merge(self):
-        """运行实体合并"""
-        self._display_stage_header("阶段4: 实体合并")
+        """Run entity merging"""
+        self._display_stage_header("Stage 4: Entity Merging")
         stage_start = time.time()
 
         try:
-            # 获取相似实体检测的结果
+            # Get similar entity detection results
             duplicates = self.similar_detector.find_potential_duplicates()
 
             if duplicates:
                 merged_count, stats = self.merger.process_duplicates(duplicates)
                 self.result.entities_merged = merged_count
 
-                self._display_results_table("实体合并结果", {
-                    "合并的实体数": merged_count,
-                    "耗时": f"{time.time() - stage_start:.2f}秒"
+                self._display_results_table("Entity Merge Results", {
+                    "Entities Merged": merged_count,
+                    "Time Elapsed": f"{time.time() - stage_start:.2f}s"
                 })
             else:
-                self.console.print("[blue]没有需要合并的实体[/blue]")
+                self.console.print("[blue]No entities to merge[/blue]")
 
         except Exception as e:
-            self.result.errors.append(f"实体合并失败: {e}")
-            self.console.print(f"[yellow]警告: 实体合并失败 - {e}[/yellow]")
+            self.result.errors.append(f"Entity merging failed: {e}")
+            self.console.print(f"[yellow]Warning: Entity merging failed - {e}[/yellow]")
 
         finally:
-            self.result.stage_times['实体合并'] = time.time() - stage_start
+            self.result.stage_times['merge'] = time.time() - stage_start
 
     def _run_multi_hop_discovery(self):
-        """运行多跳关系发现"""
-        self._display_stage_header("阶段5: 多跳关系发现")
+        """Run multi-hop relation discovery"""
+        self._display_stage_header("Stage 5: Multi-hop Relation Discovery")
         stage_start = time.time()
 
         try:
             result = self.multi_hop_discoverer.discover_all()
             self.result.multi_hop_relations_found = result.get('relations_found', 0)
 
-            self._display_results_table("多跳关系发现结果", {
-                "发现的潜在关系": result.get('relations_found', 0),
-                "已写入的关系": result.get('relations_written', 0),
-                "分析的路径数": result.get('paths_analyzed', 0),
-                "耗时": f"{time.time() - stage_start:.2f}秒"
+            self._display_results_table("Multi-hop Relation Discovery Results", {
+                "Potential Relations Found": result.get('relations_found', 0),
+                "Relations Written": result.get('relations_written', 0),
+                "Paths Analyzed": result.get('paths_analyzed', 0),
+                "Time Elapsed": f"{time.time() - stage_start:.2f}s"
             })
 
         except Exception as e:
-            self.result.errors.append(f"多跳关系发现失败: {e}")
-            self.console.print(f"[yellow]警告: 多跳关系发现失败 - {e}[/yellow]")
+            self.result.errors.append(f"Multi-hop relation discovery failed: {e}")
+            self.console.print(f"[yellow]Warning: Multi-hop relation discovery failed - {e}[/yellow]")
 
         finally:
-            self.result.stage_times['多跳关系发现'] = time.time() - stage_start
+            self.result.stage_times['multi_hop'] = time.time() - stage_start
 
     def _display_final_summary(self):
-        """显示最终摘要"""
+        """Display final summary"""
         if not self.config.verbose:
             return
 
-        # 状态面板
-        status = "[bold green]成功[/bold green]" if self.result.success else "[bold red]失败[/bold red]"
+        # Status panel
+        status = "[bold green]Success[/bold green]" if self.result.success else "[bold red]Failed[/bold red]"
         self.console.print(Panel(
-            f"归一化流程完成 - 状态: {status}",
+            f"Normalization Complete - Status: {status}",
             border_style="green" if self.result.success else "red"
         ))
 
-        # 总体统计表
-        summary_table = Table(title="归一化总结", show_header=True)
-        summary_table.add_column("阶段", style="cyan")
-        summary_table.add_column("处理数量", justify="right")
-        summary_table.add_column("耗时(秒)", justify="right")
+        # Summary table
+        summary_table = Table(title="Normalization Summary", show_header=True)
+        summary_table.add_column("Stage", style="cyan")
+        summary_table.add_column("Count", justify="right")
+        summary_table.add_column("Time (s)", justify="right")
 
         stages = [
-            ("相似实体检测", self.result.similar_entities_detected),
-            ("实体消歧", self.result.entities_disambiguated),
-            ("实体对齐", self.result.entities_aligned),
-            ("实体合并", self.result.entities_merged),
-            ("多跳关系发现", self.result.multi_hop_relations_found)
+            ("Similar Detection", self.result.similar_entities_detected, "similar_detection"),
+            ("Disambiguation", self.result.entities_disambiguated, "disambiguation"),
+            ("Alignment", self.result.entities_aligned, "alignment"),
+            ("Merge", self.result.entities_merged, "merge"),
+            ("Multi-hop Discovery", self.result.multi_hop_relations_found, "multi_hop")
         ]
 
-        for stage_name, count in stages:
-            time_taken = self.result.stage_times.get(stage_name, 0)
+        for stage_name, count, key in stages:
+            time_taken = self.result.stage_times.get(key, 0)
             summary_table.add_row(stage_name, str(count), f"{time_taken:.2f}")
 
         summary_table.add_row(
-            "[bold]总计[/bold]",
+            "[bold]Total[/bold]",
             "",
             f"[bold]{self.result.total_time:.2f}[/bold]",
             style="bold"
@@ -394,18 +394,18 @@ class EntityNormalizer:
 
         self.console.print(summary_table)
 
-        # 显示错误（如果有）
+        # Display errors if any
         if self.result.errors:
-            self.console.print("\n[yellow]警告/错误:[/yellow]")
+            self.console.print("\n[yellow]Warnings/Errors:[/yellow]")
             for error in self.result.errors:
                 self.console.print(f"  - {error}")
 
     def normalize_quick(self) -> NormalizationResult:
         """
-        快速归一化（跳过耗时的多跳关系发现）
+        Quick normalization (skip time-consuming multi-hop relation discovery)
 
         Returns:
-            NormalizationResult: 归一化结果
+            NormalizationResult: Normalization result
         """
         original_multi_hop = self.config.enable_multi_hop
         self.config.enable_multi_hop = False
@@ -417,10 +417,10 @@ class EntityNormalizer:
 
     def get_normalization_stats(self) -> Dict[str, Any]:
         """
-        获取当前图谱的归一化统计信息
+        Get current graph normalization statistics
 
         Returns:
-            Dict: 统计信息
+            Dict: Statistics
         """
         stats_query = """
         MATCH (e:`__Entity__`)
@@ -446,27 +446,27 @@ class EntityNormalizer:
 
 def normalize(config: Optional[NormalizationConfig] = None) -> NormalizationResult:
     """
-    执行实体归一化的便捷函数
+    Convenience function for entity normalization
 
     Args:
-        config: 归一化配置
+        config: Normalization config
 
     Returns:
-        NormalizationResult: 归一化结果
+        NormalizationResult: Normalization result
     """
     normalizer = EntityNormalizer(config)
     return normalizer.normalize()
 
 
 if __name__ == "__main__":
-    # 命令行入口
+    # Command line entry
     import argparse
 
-    parser = argparse.ArgumentParser(description="实体归一化处理")
-    parser.add_argument("--quick", action="store_true", help="快速模式（跳过多跳关系发现）")
-    parser.add_argument("--no-merge", action="store_true", help="跳过实体合并")
-    parser.add_argument("--verbose", action="store_true", default=True, help="详细输出")
-    parser.add_argument("--multi-hop-depth", type=int, default=3, help="多跳关系最大深度")
+    parser = argparse.ArgumentParser(description="Entity Normalization Processing")
+    parser.add_argument("--quick", action="store_true", help="Quick mode (skip multi-hop discovery)")
+    parser.add_argument("--no-merge", action="store_true", help="Skip entity merging")
+    parser.add_argument("--verbose", action="store_true", default=True, help="Verbose output")
+    parser.add_argument("--multi-hop-depth", type=int, default=3, help="Max depth for multi-hop relations")
 
     args = parser.parse_args()
 
@@ -484,5 +484,5 @@ if __name__ == "__main__":
     else:
         result = normalizer.normalize()
 
-    # 返回适当的退出代码
+    # Return appropriate exit code
     exit(0 if result.success else 1)
