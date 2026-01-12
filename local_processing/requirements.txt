@@ -1,0 +1,10 @@
+pandas>=1.5.0
+numpy>=1.21.0
+tqdm>=4.64.0
+scikit-learn>=1.0.0
+
+# Optional: for embedding-based similarity (recommended)
+sentence-transformers>=2.2.0
+
+# Optional: for graph analysis (recommended)
+networkx>=2.8.0
