@@ -324,9 +324,37 @@ class LLMPathway:
 
         初始化LLM客户端
         """
-        # Placeholder for LLM initialization
-        # 实际使用时需要根据配置初始化OpenAI/本地LLM
-        pass
+        try:
+            from openai import OpenAI
+
+            # 从配置文件加载 API 设置
+            # Load API settings from config
+            try:
+                from .training.config import openai_config
+                api_key = openai_config.api_key
+                base_url = openai_config.base_url
+                self.llm_model = openai_config.model
+                self.llm_temperature = openai_config.temperature
+                self.llm_max_tokens = openai_config.max_tokens
+            except ImportError:
+                # 使用默认配置
+                api_key = "sk-kzBbW2kbljrrOmp6EAgXcQR1F4cxhTMaCJmfyzZeIY8m1fPu"
+                base_url = "https://yinli.one/v1"
+                self.llm_model = "gpt-4"
+                self.llm_temperature = 0.3
+                self.llm_max_tokens = 1000
+
+            self.llm_client = OpenAI(
+                api_key=api_key,
+                base_url=base_url,
+            )
+            logger.info(f"LLM client initialized with model: {self.llm_model}")
+        except ImportError:
+            logger.warning("OpenAI package not installed. LLM pathway will use rule-based fallback.")
+            self.llm_client = None
+        except Exception as e:
+            logger.warning(f"Failed to initialize LLM client: {e}. Using rule-based fallback.")
+            self.llm_client = None
 
     def predict(
         self,
@@ -429,15 +457,47 @@ class LLMPathway:
         prompt: str,
         features: HeartAnatomyFeatures
     ) -> Dict[str, Any]:
-        """Run LLM inference (placeholder for actual implementation)
+        """Run LLM inference
 
-        运行LLM推理（实际实现的占位符）
+        运行LLM推理
         """
-        # Placeholder: In production, this would call OpenAI/Claude/local LLM
-        # 占位符：在生产环境中，这会调用OpenAI/Claude/本地LLM
+        # 如果有 LLM 客户端，调用真实 API
+        # If LLM client is available, call real API
+        if self.llm_client is not None:
+            try:
+                response = self.llm_client.chat.completions.create(
+                    model=self.llm_model,
+                    messages=[
+                        {"role": "system", "content": "You are a cardiac transplant specialist. Always respond in valid JSON format."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=self.llm_temperature,
+                    max_tokens=self.llm_max_tokens,
+                )
 
-        # For now, return rule-based estimate from features
-        # 目前返回基于特征的规则估计
+                # 解析响应
+                response_text = response.choices[0].message.content
+
+                # 尝试提取 JSON
+                import re
+                json_match = re.search(r'\{[\s\S]*\}', response_text)
+                if json_match:
+                    result = json.loads(json_match.group())
+                    # 确保所有必要字段存在
+                    result.setdefault('quality_score', 70.0)
+                    result.setdefault('risk_level', 'medium')
+                    result.setdefault('risk_factors', [])
+                    result.setdefault('recommendations', [])
+                    result.setdefault('reasoning', [])
+                    result.setdefault('confidence', 0.7)
+                    return result
+                else:
+                    logger.warning("LLM response not in JSON format, using rule-based fallback")
+            except Exception as e:
+                logger.warning(f"LLM inference failed: {e}, using rule-based fallback")
+
+        # 回退到基于规则的估计
+        # Fallback to rule-based estimate
         quality_score = 75.0
         risk_factors = []
         recommendations = []
@@ -612,17 +672,38 @@ class PerfusionOutcomePredictor:
 
         初始化知识图谱连接
         """
-        # Placeholder for Neo4j/other graph database connection
-        # 占位符：连接Neo4j或其他图数据库
         try:
-            # from neo4j import GraphDatabase
-            # self.kg_client = GraphDatabase.driver(
-            #     f"bolt://{self.config.kg_host}:{self.config.kg_port}",
-            #     auth=(self.config.kg_user, self.config.kg_password)
-            # )
-            logger.info("KG connection placeholder initialized")
+            from neo4j import GraphDatabase
+
+            # 从配置文件加载连接参数
+            # Load connection parameters from config
+            try:
+                from .training.config import neo4j_config
+                uri = neo4j_config.uri
+                user = neo4j_config.user
+                password = neo4j_config.password
+                self.kg_database = neo4j_config.database
+            except ImportError:
+                # 使用默认配置
+                uri = "bolt://localhost:7687"
+                user = "neo4j"
+                password = "wunai1127"
+                self.kg_database = "backup"
+
+            self.kg_client = GraphDatabase.driver(
+                uri,
+                auth=(user, password)
+            )
+            # 测试连接
+            with self.kg_client.session(database=self.kg_database) as session:
+                result = session.run("RETURN 1 as test")
+                result.single()
+            logger.info(f"KG connection established to {uri}, database: {self.kg_database}")
+        except ImportError:
+            logger.warning("neo4j package not installed. KG will use mock data.")
+            self.kg_client = None
         except Exception as e:
-            logger.warning(f"Failed to connect to KG: {e}")
+            logger.warning(f"Failed to connect to KG: {e}. Using mock data.")
             self.kg_client = None
 
     def query_kg_context(
@@ -644,16 +725,51 @@ class PerfusionOutcomePredictor:
         if not self.kg_client:
             return self._get_mock_kg_context(entities)
 
-        # Placeholder for actual KG query
-        # 占位符：实际的KG查询
-        # query = '''
-        # MATCH (e:Entity)-[r]-(related)
-        # WHERE e.name IN $entities
-        # RETURN e.name as source, type(r) as relation, related.name as target
-        # LIMIT 20
-        # '''
+        try:
+            # 实际查询 Neo4j
+            # Query Neo4j for related entities
+            query = '''
+            MATCH (e)-[r]-(related)
+            WHERE e.name IN $entities OR e.normalized_name IN $entities
+            RETURN e.name as source, type(r) as relation, related.name as target
+            LIMIT 30
+            '''
 
-        return self._get_mock_kg_context(entities)
+            results = []
+            with self.kg_client.session(database=self.kg_database) as session:
+                result = session.run(query, entities=entities)
+                for record in result:
+                    results.append({
+                        'source': record['source'],
+                        'relation': record['relation'],
+                        'target': record['target'],
+                    })
+
+            if results:
+                logger.info(f"Found {len(results)} KG relations for entities: {entities[:3]}...")
+                return results
+            else:
+                # 如果没有直接匹配，尝试模糊匹配
+                # If no direct match, try fuzzy matching
+                fuzzy_query = '''
+                MATCH (e)-[r]-(related)
+                WHERE any(ent IN $entities WHERE e.name CONTAINS ent OR e.normalized_name CONTAINS ent)
+                RETURN e.name as source, type(r) as relation, related.name as target
+                LIMIT 20
+                '''
+                result = session.run(fuzzy_query, entities=entities)
+                for record in result:
+                    results.append({
+                        'source': record['source'],
+                        'relation': record['relation'],
+                        'target': record['target'],
+                    })
+
+            return results if results else self._get_mock_kg_context(entities)
+
+        except Exception as e:
+            logger.warning(f"KG query failed: {e}, using mock data")
+            return self._get_mock_kg_context(entities)
 
     def _get_mock_kg_context(self, entities: List[str]) -> List[Dict[str, Any]]:
         """Get mock KG context for demonstration
