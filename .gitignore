@@ -1,0 +1,32 @@
+# Extracted data (temporary)
+data_extracted/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+
+# ML outputs
+outputs/
+*.npy
+*.pt
+*.h5
+
+# Environment
+.env
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Cache
+cache/
+.cache/
