@@ -1,0 +1,100 @@
+{
+  "perfusion_strategy": {
+    "method": "HTK solution",
+    "temperature": 4,
+    "pressure": 60,
+    "flow_rate": 1.2,
+    "duration": 240,
+    "additives": ["adenosine", "insulin"],
+    "delivery_mode": "antegrade"
+  },
+
+  "cardiac_description": {
+    "visual_inspection": "Heart appears mildly hypertrophied with no visible scarring. Coronary arteries patent. Left ventricle shows good contractility.",
+    "palpation_notes": "Firm consistency, no areas of induration. Valves appear competent.",
+    "procurement_notes": "Cross-clamp time 32 minutes. Immediate cold perfusion initiated.",
+    "surgeon_comments": "Excellent quality donor heart. Minimal ischemic time."
+  },
+
+  "blood_gas_data": {
+    "pre_perfusion": {
+      "lactate": 2.8,
+      "pH": 7.32,
+      "pO2": 280,
+      "pCO2": 45,
+      "K+": 4.2,
+      "glucose": 120
+    },
+    "during_perfusion": [
+      {
+        "time": 60,
+        "lactate": 1.8,
+        "pH": 7.38,
+        "pO2": 320,
+        "pCO2": 42,
+        "K+": 4.1,
+        "glucose": 115
+      },
+      {
+        "time": 120,
+        "lactate": 1.2,
+        "pH": 7.40,
+        "pO2": 340,
+        "pCO2": 40,
+        "K+": 4.0,
+        "glucose": 110
+      },
+      {
+        "time": 180,
+        "lactate": 0.9,
+        "pH": 7.42,
+        "pO2": 350,
+        "pCO2": 38,
+        "K+": 4.0,
+        "glucose": 105
+      },
+      {
+        "time": 240,
+        "lactate": 0.6,
+        "pH": 7.44,
+        "pO2": 360,
+        "pCO2": 36,
+        "K+": 3.9,
+        "glucose": 100
+      }
+    ],
+    "post_perfusion": {
+      "lactate": 0.6,
+      "pH": 7.44,
+      "pO2": 360,
+      "pCO2": 36,
+      "K+": 3.9,
+      "glucose": 100
+    }
+  },
+
+  "recipient_medical_record": {
+    "demographics": {
+      "age": 55,
+      "gender": "male",
+      "weight": 78,
+      "height": 175
+    },
+    "diagnosis": "dilated cardiomyopathy",
+    "comorbidities": ["diabetes", "hypertension", "chronic kidney disease stage 3"],
+    "lab_results": {
+      "creatinine": 1.8,
+      "BNP": 2400,
+      "troponin": 0.15,
+      "albumin": 3.5
+    },
+    "hemodynamics": {
+      "LVEF": 15,
+      "PVR": 3.2,
+      "cardiac_output": 3.8,
+      "PCWP": 28
+    },
+    "previous_interventions": ["LVAD", "ICD implantation"],
+    "medications": ["furosemide", "carvedilol", "lisinopril", "warfarin"]
+  }
+}

@@ -1,0 +1,130 @@
+========================================
+心脏移植KG系统 - 配置检查清单
+========================================
+
+请逐项检查以下内容：
+
+□ 1. LLM API 配置
+   文件: config.yaml
+   位置: llm.deepseek.api_key
+   当前值: "YOUR_DEEPSEEK_API_KEY"
+   ✓ 已修改为真实密钥
+
+   获取方式:
+   - DeepSeek: https://platform.deepseek.com/
+   - OpenAI: https://platform.openai.com/
+
+□ 2. Neo4j 配置
+   文件: config.yaml
+   位置: neo4j.password
+   当前值: "YOUR_NEO4J_PASSWORD"
+   ✓ 已修改为真实密码
+
+   验证方式:
+   - 访问 http://localhost:7474
+   - 使用 neo4j / 您的密码 登录
+   - 确保能成功连接
+
+□ 3. 数据文件准备
+   目录: /home/user/SHU/data/medical_abstracts/
+   文件数量: ______ 个 JSON/JSONL 文件
+   ✓ 已上传20000+篇文章
+
+   验证命令:
+   ls -lh /home/user/SHU/data/medical_abstracts/
+
+   格式要求:
+   - JSON数组: [{"pmid": "...", "abstract": "..."}, ...]
+   - 或 JSONL: 每行一个JSON对象
+
+□ 4. 数据字段映射
+   文件: config.yaml
+   位置: data.field_mapping
+
+   检查您的JSON结构:
+   - 文本字段名: ________ (默认: "abstract")
+   - ID字段名: ________ (默认: "pmid")
+
+   如果字段名不同，修改config.yaml中的:
+   text_field: "您的字段名"
+   id_field: "您的ID字段名"
+
+□ 5. 依赖包安装
+   ✓ 已运行: pip install -r requirements.txt
+
+   验证命令:
+   python3 -c "import yaml, tqdm, openai, neo4j, pandas"
+
+   如果报错，运行:
+   pip install -r requirements.txt
+
+□ 6. Neo4j 运行状态
+   ✓ Neo4j 已启动
+
+   检查命令:
+   sudo systemctl status neo4j
+
+   启动命令:
+   sudo systemctl start neo4j
+
+□ 7. 系统就绪性检查
+   ✓ 已通过: python3 test_system_ready.py
+
+   运行命令:
+   cd /home/user/SHU/automated_kg_pipeline
+   python3 test_system_ready.py --config config.yaml
+
+   预期输出: 所有检查项都显示 ✓
+
+========================================
+全部打勾后，运行以下命令开始构建:
+========================================
+
+# 方式1: 使用快速启动脚本（推荐）
+./快速启动.sh
+
+# 方式2: 直接运行Python脚本
+python3 auto_kg_builder.py --config config.yaml
+
+# 方式3: 先测试10篇文章
+python3 auto_kg_builder.py --config config.yaml --test-mode --max-articles 10
+
+========================================
+常见问题
+========================================
+
+Q1: 我的数据文件在哪里？
+A1: 您提到有20000+篇文章JSON，请将它们复制到:
+    /home/user/SHU/data/medical_abstracts/
+
+Q2: 我的JSON字段名和示例不一样怎么办？
+A2: 修改 config.yaml 中的 field_mapping 部分
+    例如，如果您的文本字段叫"content":
+    text_field: "content"
+
+Q3: 我没有DeepSeek API，可以用OpenAI吗？
+A3: 可以，修改 config.yaml:
+    llm:
+      provider: "openai"
+    然后填写 llm.openai.api_key
+
+Q4: 我想用本地模型，需要什么配置？
+A4: 需要GPU，修改 config.yaml:
+    llm:
+      provider: "local"
+    然后确保安装了PyTorch和transformers
+
+Q5: 构建需要多长时间？
+A5:
+    - DeepSeek API: 30-60分钟（成本~50元）
+    - 本地Llama 8B (4 GPU): 约14小时
+    - OpenAI GPT-4: 60-90分钟（成本~200元）
+
+========================================
+获取帮助
+========================================
+
+详细配置说明: 配置指南.md
+系统文档: README.md
+优化策略: OPTIMIZATION_STRATEGY.md
+集成方案: INTEGRATION_STRATEGY.md

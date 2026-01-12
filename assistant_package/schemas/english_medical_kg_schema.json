@@ -1,0 +1,232 @@
+{
+  "version": "1.0",
+  "description": "English Heart Transplant Knowledge Graph Schema - Designed based on 7 official guidelines",
+  "entity_types": {
+    "surgical_procedure": {
+      "description": "Various operational steps in heart transplantation surgery",
+      "examples": ["recipient cardiectomy", "donor heart preparation", "left atrial anastomosis", "cardiopulmonary bypass"],
+      "properties": {
+        "procedure_name": "string",
+        "technique_type": "enum[bicaval,biatrial,total_orthotopic,heterotopic]",
+        "sequential_order": "integer",
+        "duration": "string",
+        "key_operations": "array[string]",
+        "precautions": "array[string]"
+      }
+    },
+    "donor_characteristic": {
+      "description": "Characteristics and quality indicators of donor hearts",
+      "examples": ["donor age", "donor heart ischemic time", "donor heart left ventricular hypertrophy", "donor diabetes"],
+      "properties": {
+        "characteristic_name": "string",
+        "reference_range": "string",
+        "assessment_method": "string",
+        "influencing_factors": "array[string]"
+      }
+    },
+    "recipient_characteristic": {
+      "description": "Clinical characteristics of recipients",
+      "examples": ["recipient age", "pulmonary vascular resistance", "heart function class", "previous surgery history"],
+      "properties": {
+        "characteristic_name": "string",
+        "normal_range": "string",
+        "measurement_method": "string",
+        "clinical_significance": "string"
+      }
+    },
+    "risk_factor": {
+      "description": "Risk factors affecting transplantation outcomes",
+      "examples": ["prolonged ischemic time", "donor-recipient age difference", "high pulmonary vascular resistance", "re-transplantation"],
+      "properties": {
+        "risk_name": "string",
+        "risk_level": "enum[low,moderate,high]",
+        "threshold": "string",
+        "risk_quantification": "string"
+      }
+    },
+    "complication": {
+      "description": "Potential complications during and after surgery",
+      "examples": ["primary graft dysfunction", "acute rejection", "infection", "bleeding"],
+      "properties": {
+        "complication_name": "string",
+        "incidence_rate": "string",
+        "severity": "enum[mild,moderate,severe,life_threatening]",
+        "diagnostic_criteria": "string",
+        "management_approach": "array[string]"
+      }
+    },
+    "contraindication": {
+      "description": "Contraindications for heart transplantation",
+      "examples": ["active malignancy", "active infection", "severe pulmonary hypertension", "substance abuse"],
+      "properties": {
+        "contraindication_name": "string",
+        "type": "enum[absolute_contraindication,relative_contraindication]",
+        "rationale": "string",
+        "exceptions": "string"
+      }
+    },
+    "medication": {
+      "description": "Immunosuppressive and other related medications",
+      "examples": ["tacrolimus", "cyclosporine", "azathioprine", "methylprednisolone"],
+      "properties": {
+        "medication_name": "string",
+        "medication_type": "string",
+        "dosage_regimen": "string",
+        "adverse_reactions": "array[string]",
+        "contraindications": "array[string]"
+      }
+    },
+    "monitoring_indicator": {
+      "description": "Indicators that need to be monitored preoperatively, intraoperatively, and postoperatively",
+      "examples": ["pulmonary vascular resistance", "left ventricular ejection fraction", "creatinine", "drug blood concentration"],
+      "properties": {
+        "indicator_name": "string",
+        "normal_range": "string",
+        "monitoring_frequency": "string",
+        "clinical_significance": "string"
+      }
+    },
+    "diagnostic_criteria": {
+      "description": "Diagnostic criteria for various diseases and complications",
+      "examples": ["rejection diagnosis", "PGD grading", "infection diagnosis"],
+      "properties": {
+        "criteria_name": "string",
+        "diagnostic_basis": "array[string]",
+        "grading_criteria": "string"
+      }
+    },
+    "treatment_regimen": {
+      "description": "Treatment and management protocols for various conditions",
+      "examples": ["acute rejection treatment", "infection management", "postoperative immunosuppression protocol"],
+      "properties": {
+        "regimen_name": "string",
+        "indications": "array[string]",
+        "specific_measures": "array[string]",
+        "expected_outcome": "string"
+      }
+    },
+    "medical_device": {
+      "description": "Instruments and devices used in surgery and treatment",
+      "examples": ["cardiopulmonary bypass machine", "ventilator", "ECMO", "ventricular assist device"],
+      "properties": {
+        "device_name": "string",
+        "usage_scenario": "string",
+        "operation_key_points": "string"
+      }
+    }
+  },
+  "relation_types": {
+    "causes": {
+      "description": "Causal relationship: A causes B",
+      "examples": ["prolonged ischemic time → primary graft dysfunction"],
+      "valid_source_types": ["risk_factor", "complication", "donor_characteristic", "recipient_characteristic"],
+      "valid_target_types": ["complication", "adverse_outcome"],
+      "properties": {
+        "evidence_strength": "enum[RCT,cohort_study,case_control,case_report,expert_consensus]",
+        "odds_ratio": "float",
+        "confidence_interval": "string",
+        "p_value": "float"
+      }
+    },
+    "increases_risk": {
+      "description": "A increases the risk of B occurring",
+      "examples": ["high pulmonary vascular resistance → increased risk of right heart failure"],
+      "valid_source_types": ["risk_factor", "donor_characteristic", "recipient_characteristic"],
+      "valid_target_types": ["complication"],
+      "properties": {
+        "risk_ratio": "float",
+        "threshold": "string",
+        "evidence_source": "string"
+      }
+    },
+    "alleviates": {
+      "description": "A alleviates or reduces B",
+      "examples": ["immunosuppressive therapy → acute rejection"],
+      "valid_source_types": ["medication", "treatment_regimen", "medical_device"],
+      "valid_target_types": ["complication", "symptom"],
+      "properties": {
+        "efficacy_rate": "string",
+        "onset_time": "string"
+      }
+    },
+    "prerequisite_of": {
+      "description": "Performing A requires B to be satisfied first",
+      "examples": ["cardiac reperfusion → aortic anastomosis completed"],
+      "valid_source_types": ["surgical_procedure"],
+      "valid_target_types": ["surgical_procedure", "monitoring_indicator"],
+      "properties": {
+        "necessity": "enum[required,recommended,optional]"
+      }
+    },
+    "contraindicated_in": {
+      "description": "A is contraindicated in B",
+      "examples": ["cyclosporine → severe renal insufficiency"],
+      "valid_source_types": ["medication", "treatment_regimen"],
+      "valid_target_types": ["contraindication", "recipient_characteristic"],
+      "properties": {
+        "contraindication_type": "enum[absolute,relative]",
+        "rationale": "string"
+      }
+    },
+    "precedes": {
+      "description": "Temporal relationship of surgical procedures",
+      "examples": ["cardiopulmonary bypass establishment → aortic cross-clamping"],
+      "valid_source_types": ["surgical_procedure"],
+      "valid_target_types": ["surgical_procedure"],
+      "properties": {
+        "time_interval": "string",
+        "must_be_consecutive": "boolean"
+      }
+    },
+    "monitors": {
+      "description": "Certain indicators need to be monitored during a procedure or situation",
+      "examples": ["cardiopulmonary bypass → hemodynamic monitoring"],
+      "valid_source_types": ["surgical_procedure", "treatment_regimen"],
+      "valid_target_types": ["monitoring_indicator"],
+      "properties": {
+        "monitoring_frequency": "string",
+        "target_range": "string"
+      }
+    },
+    "diagnostic_basis_for": {
+      "description": "Basis for diagnosing a disease",
+      "examples": ["acute rejection → endomyocardial biopsy pathology"],
+      "valid_source_types": ["complication"],
+      "valid_target_types": ["diagnostic_criteria", "monitoring_indicator"],
+      "properties": {
+        "sensitivity": "string",
+        "specificity": "string"
+      }
+    },
+    "treats": {
+      "description": "Treatment of a disease with a certain protocol",
+      "examples": ["methylprednisolone pulse therapy → acute rejection"],
+      "valid_source_types": ["treatment_regimen", "medication"],
+      "valid_target_types": ["complication", "disease"],
+      "properties": {
+        "recommendation_class": "enum[I,IIa,IIb,III]",
+        "evidence_level": "enum[A,B,C]"
+      }
+    },
+    "part_of": {
+      "description": "A is part of B",
+      "examples": ["left atrial anastomosis → bicaval heart transplantation"],
+      "valid_source_types": ["surgical_procedure"],
+      "valid_target_types": ["surgical_procedure"],
+      "properties": {}
+    }
+  },
+  "global_properties": {
+    "source_document": "string",
+    "section": "string",
+    "confidence": "float",
+    "last_updated": "datetime",
+    "review_status": "enum[pending_review,reviewed,needs_correction]"
+  },
+  "validation_rules": {
+    "entity_name_pattern": "^[a-zA-Z0-9()\\-\\s,]+$",
+    "relation_must_have_evidence": true,
+    "required_properties": ["source_document"],
+    "max_relation_per_entity": 50
+  }
+}

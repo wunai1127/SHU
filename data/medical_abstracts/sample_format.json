@@ -1,0 +1,29 @@
+[
+  {
+    "pmid": "12345678",
+    "title": "Impact of Prolonged Ischemic Time on Primary Graft Dysfunction After Heart Transplantation",
+    "abstract": "Background: Prolonged ischemic time is a major risk factor for primary graft dysfunction (PGD) following heart transplantation. This study evaluated the relationship between ischemic time and PGD incidence. Methods: We retrospectively analyzed 523 heart transplant recipients from 2015-2020. Ischemic time was categorized as <4 hours (n=285) or ≥4 hours (n=238). PGD was defined according to ISHLT criteria. Results: The incidence of PGD was significantly higher in the prolonged ischemic time group (25.2% vs 12.3%, p<0.001). Multivariate analysis revealed that ischemic time ≥4 hours was an independent predictor of PGD (OR 2.3, 95% CI 1.5-3.5, p<0.001). Conclusions: Minimizing ischemic time to <4 hours is critical to reduce PGD risk.",
+    "authors": ["Zhang L", "Wang Y", "Chen X"],
+    "journal": "J Heart Lung Transplant",
+    "year": 2023,
+    "doi": "10.1016/j.healun.2023.01.001"
+  },
+  {
+    "pmid": "12345679",
+    "title": "Pulmonary Vascular Resistance and Heart Transplant Outcomes",
+    "abstract": "Objective: To assess the impact of elevated pulmonary vascular resistance (PVR) on heart transplant outcomes. Methods: 412 heart transplant candidates underwent right heart catheterization. PVR was measured in Wood units. Patients were categorized as having normal (PVR <3 WU, n=298) or elevated PVR (PVR ≥3 WU, n=114). Results: Elevated PVR was associated with increased risk of right ventricular failure (18.4% vs 6.7%, p=0.002) and 1-year mortality (15.8% vs 8.1%, p=0.03). For every 1 WU increase in PVR, the odds of right ventricular failure increased by 35% (OR 1.35, p=0.008). Conclusions: Elevated PVR is a significant predictor of adverse outcomes and should be carefully managed pre-transplant.",
+    "authors": ["Liu H", "Zhou M", "Xu J"],
+    "journal": "Circulation",
+    "year": 2022,
+    "doi": "10.1161/CIRCULATIONAHA.122.012345"
+  },
+  {
+    "pmid": "12345680",
+    "title": "心脏移植术后急性排斥反应的诊断与治疗",
+    "abstract": "目的：探讨心脏移植术后急性排斥反应的临床特征及治疗方法。方法：回顾性分析2018-2021年间216例心脏移植受者的临床资料，其中43例发生急性排斥反应。采用心内膜心肌活检（EMB）进行病理诊断，根据ISHLT分级标准评估排斥程度。结果：急性排斥反应发生率为19.9%，主要发生于术后3-6个月。轻度排斥（1R-2R级）30例，经调整免疫抑制剂剂量后好转；重度排斥（3R级）13例，采用甲基泼尼松龙冲击治疗，其中11例成功逆转。结论：早期识别和及时治疗急性排斥反应是改善心脏移植预后的关键。",
+    "authors": ["王磊", "李明", "张华"],
+    "journal": "中华器官移植杂志",
+    "year": 2023,
+    "doi": "10.3760/cma.j.cn421203-20230215-00012"
+  }
+]
