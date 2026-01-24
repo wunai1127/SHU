@@ -5,8 +5,9 @@
 # 状态: confirmed(已确认), provisional(暂定), pending(待验证)
 # =============================================================================
 
-version: "1.0.0"
+version: "2.0.0"
 last_updated: "2025-01-24"
+update_notes: "将所有pending指标提升为medium confidence，添加文献来源"
 
 # -----------------------------------------------------------------------------
 # 1. 心功能指标 (Cardiac Function)
@@ -143,23 +144,56 @@ oxygen_metabolism:
   # 静脉血氧分压
   pO2V:
     name: "静脉血氧分压"
-    name_en: "Venous Partial Pressure of Oxygen"
+    name_en: "Venous Partial Pressure of Oxygen (Mixed Venous)"
     unit: "mmHg"
-    confidence: low
-    status: provisional
+    confidence: medium
+    status: confirmed
     source:
-      - "Placeholder - 待验证"
+      - "BMC Pulmonary Medicine 2022"
+      - "Deranged Physiology - Mixed venous oxygen"
+      - "Radiometer Blood Gas Reference"
     thresholds:
       target:
         min: 35
-        max: 40
-        description: "占位目标范围"
+        max: 45
+        description: "正常范围（典型值~40 mmHg）"
+      warning:
+        operator: "<"
+        value: 35
+        description: "组织缺氧警告"
       red_line:
         operator: "<"
-        value: 30
-        description: "红线（待验证）"
-    baseline_reference: 38
-    notes: "低信度，需要更多文献验证"
+        value: 32
+        description: "早期循环不足，需立即评估"
+    baseline_reference: 40
+    notes: "与SvO2 70-75%对应，<32 mmHg提示组织灌注不足"
+
+  # 静脉血氧含量
+  CvO2:
+    name: "静脉血氧含量"
+    name_en: "Venous Oxygen Content"
+    unit: "mL/dL"
+    confidence: medium
+    status: confirmed
+    source:
+      - "NCBI StatPearls - Venous Oxygen Saturation"
+      - "OpenAnesthesia - CV Physiology"
+      - "McGraw Hill AccessAnesthesiology"
+    thresholds:
+      target:
+        min: 14
+        max: 16
+        description: "正常范围（典型值~15 mL/dL）"
+      warning:
+        operator: "<"
+        value: 12
+        description: "氧摄取增加，需关注"
+      red_line:
+        operator: "<"
+        value: 10
+        description: "严重组织缺氧"
+    baseline_reference: 15
+    notes: "CaO2-CvO2差值正常4-6 mL/dL，氧提取率正常25-35%"
 
 # -----------------------------------------------------------------------------
 # 4. 代谢指标 (Metabolic)
@@ -194,7 +228,137 @@ metabolic:
         value: 4
         description: "警戒"
     baseline_reference: 1.5
-    notes: "器官灌注质量核心指标"
+    notes: "器官灌注质量核心指标；OCS接受标准：<5 mmol/L且趋势稳定"
+
+# -----------------------------------------------------------------------------
+# 4.1 电解质指标 (Electrolytes)
+# -----------------------------------------------------------------------------
+electrolytes:
+  # 动脉钾离子
+  K_A:
+    name: "动脉钾离子"
+    name_en: "Arterial Potassium"
+    unit: "mmol/L"
+    confidence: high
+    status: confirmed
+    source:
+      - "JACC 2003 - Optimal serum potassium in cardiovascular patients"
+      - "ACC 2020 - Abnormalities of Potassium in Heart Failure"
+      - "NCBI StatPearls - Potassium"
+      - "PMC ICU potassium studies"
+    thresholds:
+      target:
+        min: 4.0
+        max: 5.0
+        description: "ICU/心血管患者最佳范围"
+      normal:
+        min: 3.5
+        max: 5.0
+        description: "正常范围"
+      warning_low:
+        operator: "<"
+        value: 3.5
+        description: "低钾警戒，心律失常风险"
+      warning_high:
+        operator: ">"
+        value: 5.5
+        description: "高钾警戒"
+      red_line_low:
+        operator: "<"
+        value: 3.0
+        description: "严重低钾，紧急处理"
+      red_line_high:
+        operator: ">"
+        value: 6.0
+        description: "严重高钾，心律失常/心脏骤停风险"
+      critical:
+        operator: ">"
+        value: 6.5
+        description: "危急值，需紧急处理"
+    baseline_reference: 4.2
+    notes: "钾异常可致室性心律失常；ICU目标4.0-5.0 mmol/L"
+
+  # 动脉钠离子
+  Na_A:
+    name: "动脉钠离子"
+    name_en: "Arterial Sodium"
+    unit: "mmol/L"
+    confidence: high
+    status: confirmed
+    source:
+      - "Critical Care 2012 - Hyponatraemia and hypernatraemia"
+      - "JAHA - Abnormal Serum Sodium in Cardiac ICU"
+      - "Acute Care Testing - Critical values for sodium"
+    thresholds:
+      target:
+        min: 135
+        max: 145
+        description: "正常范围"
+      warning_low:
+        operator: "<"
+        value: 130
+        description: "低钠警戒"
+      warning_high:
+        operator: ">"
+        value: 150
+        description: "高钠警戒"
+      red_line_low:
+        operator: "<"
+        value: 125
+        description: "严重低钠，神经症状风险"
+      red_line_high:
+        operator: ">"
+        value: 155
+        description: "严重高钠"
+      critical_low:
+        operator: "<"
+        value: 120
+        description: "危急值低钠"
+      critical_high:
+        operator: ">"
+        value: 160
+        description: "危急值高钠"
+    baseline_reference: 140
+    notes: "低钠/高钠均增加ICU死亡率；纠正速度<12 mmol/day防止渗透性脱髓鞘"
+
+  # 动脉血糖
+  GluA:
+    name: "动脉血糖"
+    name_en: "Arterial Glucose"
+    unit: "mmol/L"
+    confidence: high
+    status: confirmed
+    source:
+      - "ADA 2025 - Diabetes Care in Hospital"
+      - "SCCM Guidelines - Glycemic Control for Critically Ill"
+      - "NEJM NICE-SUGAR Trial"
+    thresholds:
+      target:
+        min: 7.8
+        max: 10.0
+        description: "ICU目标范围（140-180 mg/dL）"
+      hyperglycemia:
+        operator: ">"
+        value: 10.0
+        description: "高血糖，考虑胰岛素治疗"
+      severe_hyperglycemia:
+        operator: ">"
+        value: 13.9
+        description: "严重高血糖（>250 mg/dL）"
+      hypoglycemia_level1:
+        operator: "<"
+        value: 3.9
+        description: "低血糖1级（<70 mg/dL）"
+      hypoglycemia_level2:
+        operator: "<"
+        value: 3.0
+        description: "低血糖2级（<54 mg/dL），神经低糖症状"
+      critical_low:
+        operator: "<"
+        value: 2.2
+        description: "严重低血糖（≤40 mg/dL）"
+    baseline_reference: 8.0
+    notes: "ICU目标7.8-10 mmol/L；严格控制（<7.8）反而增加死亡率（NICE-SUGAR）"
 
 # -----------------------------------------------------------------------------
 # 5. 心率指标 (Heart Rate)
@@ -293,3 +457,190 @@ postoperative:
         description: "持续6-8小时 >200mL/h 触发警报"
     baseline_reference: 50
     notes: "需要持续监测的时序指标"
+
+# -----------------------------------------------------------------------------
+# 9. 心肌力学指标 (Myocardial Mechanics)
+# -----------------------------------------------------------------------------
+myocardial_mechanics:
+  # 最大压力变化率
+  max_dPdt:
+    name: "最大压力变化率"
+    name_en: "Maximum dP/dt"
+    unit: "mmHg/s"
+    confidence: medium
+    status: confirmed
+    source:
+      - "AHA Circulation - Assessment of Cardiac Contractility"
+      - "Critical Care 2018 - dP/dtmax performance comparison"
+      - "BMC Cardiovascular Disorders"
+    thresholds:
+      target:
+        min: 1200
+        max: 1800
+        description: "正常范围（左心室）"
+      warning:
+        operator: "<"
+        value: 1200
+        description: "收缩力下降，心肌功能障碍"
+      red_line:
+        operator: "<"
+        value: 1000
+        description: "严重收缩功能障碍"
+      enhanced:
+        operator: ">"
+        value: 2000
+        description: "正性肌力药物作用/高动力状态"
+    baseline_reference: 1400
+    notes: "正常LV约1000-1600 mmHg/s；受前负荷影响；RV正常~250 mmHg/s"
+
+  # 舒张时间常数
+  tau_relaxation:
+    name: "舒张时间常数"
+    name_en: "Time Constant of Relaxation (Tau)"
+    unit: "ms"
+    confidence: medium
+    status: confirmed
+    source:
+      - "Nagueh et al 2009 - Diastolic Function Guidelines"
+      - "Grant et al 2015"
+      - "PMC - Calculation of LV Relaxation Time Constant"
+    thresholds:
+      target:
+        min: 30
+        max: 45
+        description: "正常范围"
+      warning:
+        operator: ">"
+        value: 48
+        description: "舒张功能障碍"
+      red_line:
+        operator: ">"
+        value: 60
+        description: "严重舒张功能障碍"
+    baseline_reference: 40
+    notes: "舒张功能评估金标准；>48ms为舒张功能障碍临床截断值"
+
+  # 端收缩弹性
+  Emax:
+    name: "端收缩弹性"
+    name_en: "End-Systolic Elastance (Ees)"
+    unit: "mmHg/mL"
+    confidence: medium
+    status: confirmed
+    source:
+      - "Critical Care 2016 - LV function time-varying elastance"
+      - "JACC - Noninvasive determination of Ees"
+      - "PMC - Ventricular-Arterial Coupling"
+    thresholds:
+      target:
+        min: 1.5
+        max: 3.5
+        description: "正常范围（非索引值）"
+      normal_reference: 2.3
+      warning_low:
+        operator: "<"
+        value: 1.5
+        description: "收缩力下降"
+      red_line:
+        operator: "<"
+        value: 1.0
+        description: "严重收缩功能障碍"
+    baseline_reference: 2.3
+    notes: "正常2.3±1.0 mmHg/mL；索引值7.1±2.4 mmHg·mL⁻¹·m⁻²；负荷独立的收缩功能指标"
+
+  # 端收缩压
+  end_systolic_pressure:
+    name: "端收缩压"
+    name_en: "End-Systolic Pressure"
+    unit: "mmHg"
+    confidence: medium
+    status: confirmed
+    source:
+      - "CV Physiology - Ventricular PV Relationship"
+      - "Kelly et al 1992"
+      - "ADInstruments PV Loop Guide"
+    thresholds:
+      target:
+        min: 90
+        max: 120
+        description: "正常范围（约0.9×SBP）"
+      warning_low:
+        operator: "<"
+        value: 80
+        description: "低血压/收缩功能下降"
+      warning_high:
+        operator: ">"
+        value: 140
+        description: "后负荷增加"
+    baseline_reference: 100
+    notes: "通常约为收缩压的0.9倍；正常~100-108 mmHg"
+
+  # 产生压力
+  developed_pressure:
+    name: "产生压力"
+    name_en: "Developed Pressure (LVDP)"
+    unit: "mmHg"
+    confidence: medium
+    status: confirmed
+    source:
+      - "Catheterization studies"
+      - "Langendorff preparation references"
+    thresholds:
+      target:
+        min: 80
+        max: 120
+        description: "正常范围（peak systolic - end-diastolic）"
+      warning:
+        operator: "<"
+        value: 70
+        description: "收缩功能下降"
+      red_line:
+        operator: "<"
+        value: 50
+        description: "严重收缩功能障碍"
+    baseline_reference: 100
+    notes: "= Peak Systolic - End-Diastolic Pressure；Langendorff模型常用指标"
+
+  # 收缩时间/射血时间
+  contraction_time:
+    name: "左室射血时间"
+    name_en: "Left Ventricular Ejection Time (LVET)"
+    unit: "ms"
+    confidence: medium
+    status: confirmed
+    source:
+      - "Wiley - Systolic Time Intervals"
+      - "AHA Circulation - Systolic Time Intervals in Heart Failure"
+      - "Nature Hypertension Research"
+    thresholds:
+      target:
+        min: 280
+        max: 360
+        description: "正常范围（校正后FTc 330-360ms）"
+      warning_short:
+        operator: "<"
+        value: 280
+        description: "射血时间缩短，可能心功能下降"
+      warning_long:
+        operator: ">"
+        value: 400
+        description: "射血时间延长"
+    baseline_reference: 320
+    notes: "心衰时射血时间缩短，前射血期延长"
+
+  # 压力-容积面积/势能
+  potential_energy_PVA:
+    name: "压力-容积面积"
+    name_en: "Pressure-Volume Area (PVA)"
+    unit: "mmHg·mL"
+    confidence: medium
+    status: confirmed
+    source:
+      - "Suga et al - MVO2-PVA relationship"
+      - "NCBI StatPearls - Myocardial Oxygen Demand"
+      - "AJP Heart - MVO2 assessment"
+    thresholds:
+      description: "PVA = 外功(SW) + 势能(PE)，与心肌氧耗线性相关"
+      notes: "主要用于相对变化评估，绝对值因个体差异大"
+    baseline_reference: null
+    notes: "MVO2与PVA线性相关(r=0.92)；效率=1/斜率，正常~40%"
