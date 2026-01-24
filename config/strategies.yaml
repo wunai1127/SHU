@@ -1,0 +1,315 @@
+# =============================================================================
+# 策略映射配置 - 阈值触发 → 临床决策
+# =============================================================================
+# 层级: red_line(红线) → warning(警戒/灰区) → normal(正常) → pending(仅监测)
+# =============================================================================
+
+version: "1.0.0"
+last_updated: "2025-01-24"
+
+# -----------------------------------------------------------------------------
+# 策略层级定义
+# -----------------------------------------------------------------------------
+strategy_levels:
+  red_line:
+    priority: 1
+    severity: critical
+    color_code: "#FF0000"
+    description: "红线触发 - 需要立即升级支持"
+    default_action: "立即干预，升级支持措施"
+
+  warning:
+    priority: 2
+    severity: warning
+    color_code: "#FFA500"
+    description: "警戒/灰区触发 - 需要微调或复核"
+    default_action: "微调当前方案，加强监测"
+
+  normal:
+    priority: 3
+    severity: info
+    color_code: "#00FF00"
+    description: "正常范围 - 维持当前方案"
+    default_action: "继续当前方案，常规监测"
+
+  pending:
+    priority: 4
+    severity: info
+    color_code: "#808080"
+    description: "待定指标 - 仅监测记录"
+    default_action: "记录数据，不做决策"
+
+# -----------------------------------------------------------------------------
+# 指标 → 策略映射
+# -----------------------------------------------------------------------------
+indicator_strategies:
+
+  # =========================================================================
+  # 心功能指标
+  # =========================================================================
+  EF:
+    red_line:
+      condition: "value < 40"
+      action: "拒绝器官或考虑MCS支持"
+      escalation: true
+
+    warning:
+      condition: "45 <= value <= 50"
+      action: "进入灰区评估流程，综合其他指标决定"
+      escalation: false
+
+    normal:
+      condition: "value > 50"
+      action: "接受，继续标准流程"
+
+  CI:
+    red_line:
+      condition: "value < 2.0"
+      action: "启动正性肌力药物支持"
+      escalation: true
+      combined_rules:
+        - trigger: "CI < 2.0 AND resuscitation_failed"
+          action: "考虑机械循环支持(MCS)"
+
+    warning:
+      condition: "2.0 <= value < 2.2"
+      action: "优化容量状态，复核血流动力学"
+
+    normal:
+      condition: "2.2 <= value <= 2.8"
+      action: "目标范围内，维持当前方案"
+
+  # =========================================================================
+  # 血压指标
+  # =========================================================================
+  MAP:
+    red_line:
+      condition: "value < 60"
+      action: "血管活性药物支持，评估容量状态"
+      escalation: true
+
+    warning:
+      condition: "60 <= value < 65"
+      action: "优化容量，考虑小剂量升压药"
+
+    normal:
+      condition: "65 <= value <= 80"
+      action: "目标范围，维持监测"
+
+  AOP:
+    red_line:
+      condition: "value < 40 OR value > 100"
+      action: "调整OCS灌注参数"
+      escalation: true
+
+    warning:
+      condition: "value < 70"
+      action: "关注灌注压力，考虑参数微调"
+
+    normal:
+      condition: "70 <= value <= 100"
+      action: "OCS正常运行范围"
+
+  # =========================================================================
+  # 氧代谢指标
+  # =========================================================================
+  SvO2:
+    red_line:
+      condition: "value < 50"
+      action: "升级支持：正性肌力药物/肺血管扩张剂"
+      escalation: true
+      combined_rules:
+        - trigger: "SvO2 < 50 AND CI_declining"
+          action: "启动MCS评估，考虑VA-ECMO"
+        - trigger: "SvO2 < 50 AND resuscitation_ineffective"
+          action: "正性肌力 + 肺血管扩张 ± MCS"
+
+    warning:
+      condition: "50 <= value < 60"
+      action: "加强氧供需平衡监测，优化氧输送"
+
+    normal:
+      condition: "value >= 65"
+      action: "目标达成，维持当前方案"
+
+  pO2V:
+    red_line:
+      condition: "value < 30"
+      action: "评估组织氧合状态（低信度阈值，谨慎解读）"
+      escalation: false
+      confidence: low
+
+    warning:
+      condition: "30 <= value < 35"
+      action: "关注趋势变化"
+      confidence: low
+
+    normal:
+      condition: "35 <= value <= 40"
+      action: "占位目标范围（待验证）"
+      confidence: low
+
+  # =========================================================================
+  # 代谢指标
+  # =========================================================================
+  Lactate:
+    red_line:
+      condition: "value > 5"
+      action: "器官不合格，评估灌注问题"
+      escalation: true
+
+    warning:
+      condition: "4 < value <= 5"
+      action: "警戒，优化灌注，加强监测"
+
+    normal:
+      condition: "value <= 2"
+      action: "理想范围"
+
+    acceptable:
+      condition: "2 < value <= 4"
+      action: "可接受，持续监测趋势"
+
+  # =========================================================================
+  # 心率指标
+  # =========================================================================
+  HR:
+    warning:
+      condition: "110 <= value <= 120"
+      action: "警戒范围，评估原因（容量、疼痛、温度等）"
+
+    normal:
+      condition: "60 <= value < 110"
+      action: "正常范围"
+
+    bradycardia:
+      condition: "value < 60"
+      action: "评估是否需要起搏或药物支持"
+
+    tachycardia:
+      condition: "value > 120"
+      action: "查找原因，考虑心率控制"
+
+  # =========================================================================
+  # 肺血管指标
+  # =========================================================================
+  PVR:
+    red_line:
+      condition: "value > 3.0"
+      action: "肺血管扩张剂治疗，评估右心功能"
+      escalation: true
+
+    warning:
+      condition: "2.5 < value <= 3.0"
+      action: "警戒，考虑预防性肺血管扩张"
+
+    normal:
+      condition: "value <= 2.5"
+      action: "目标范围"
+
+  # =========================================================================
+  # 冠脉灌注指标
+  # =========================================================================
+  CF:
+    red_line:
+      condition: "value < 400 OR value > 900"
+      action: "调整OCS冠脉流量参数"
+      escalation: true
+
+    normal:
+      condition: "400 <= value <= 900"
+      action: "OCS目标范围"
+
+  # =========================================================================
+  # 术后监测指标
+  # =========================================================================
+  chest_drainage:
+    red_line:
+      condition: "value > 200 AND duration >= 6"
+      action: "警报：评估出血原因，考虑手术探查"
+      escalation: true
+
+    warning:
+      condition: "value > 150"
+      action: "加强监测引流量趋势"
+
+    normal:
+      condition: "value <= 100"
+      action: "正常范围"
+
+# -----------------------------------------------------------------------------
+# 复合升级策略
+# -----------------------------------------------------------------------------
+escalation_protocols:
+  hemodynamic_instability:
+    name: "血流动力学不稳定升级方案"
+    triggers:
+      - "SvO2 < 50%"
+      - "CI < 2.0 L/min/m²"
+      - "MAP < 60 mmHg"
+    steps:
+      1:
+        condition: "单一指标触发"
+        action: "优化容量，复核血流动力学"
+      2:
+        condition: "复苏30分钟无效"
+        action: "启动正性肌力药物（多巴酚丁胺/米力农）"
+      3:
+        condition: "药物支持无效 OR 多指标同时触发"
+        action: "评估MCS（IABP/VA-ECMO）"
+
+  right_heart_failure:
+    name: "右心衰竭升级方案"
+    triggers:
+      - "PVR > 3.0 Wood Units"
+      - "CVP升高 + CI下降"
+    steps:
+      1:
+        action: "iNO或前列环素吸入"
+      2:
+        condition: "无效"
+        action: "静脉肺血管扩张剂"
+      3:
+        condition: "仍无效"
+        action: "考虑右心辅助装置"
+
+  organ_quality_concern:
+    name: "器官质量问题升级方案"
+    triggers:
+      - "Lactate > 5 mmol/L"
+      - "EF < 40%"
+    steps:
+      1:
+        action: "复核灌注参数，延长评估时间"
+      2:
+        condition: "指标持续恶化"
+        action: "考虑拒绝器官"
+
+# -----------------------------------------------------------------------------
+# Pending 指标策略（仅监测）
+# -----------------------------------------------------------------------------
+pending_indicator_strategy:
+  default_action: "monitor_only"
+  description: "以下指标无确认阈值，仅记录数据用于后续分析"
+
+  indicators:
+    - Emax
+    - end_systolic_pressure
+    - max_dPdt
+    - potential_energy_MEC
+    - contraction_time
+    - developed_pressure
+    - tau_relaxation
+    - GluA
+    - GluV
+    - Na_A
+    - K_A
+    - LacA
+    - CvO2
+
+  monitoring_instructions:
+    - "记录所有测量值和时间戳"
+    - "计算趋势（相对于首次测量的变化）"
+    - "标记异常偏离（超过±2SD）供人工复核"
+    - "不自动触发临床决策"
+    - "数据用于未来阈值验证研究"

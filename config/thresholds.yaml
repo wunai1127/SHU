@@ -1,0 +1,295 @@
+# =============================================================================
+# 心脏移植/机械灌注 - 特征阈值配置文件
+# =============================================================================
+# 置信度等级: high(高), medium(中), low(低), pending(待定)
+# 状态: confirmed(已确认), provisional(暂定), pending(待验证)
+# =============================================================================
+
+version: "1.0.0"
+last_updated: "2025-01-24"
+
+# -----------------------------------------------------------------------------
+# 1. 心功能指标 (Cardiac Function)
+# -----------------------------------------------------------------------------
+cardiac_function:
+  # 射血分数 (Ejection Fraction)
+  EF:
+    name: "射血分数"
+    name_en: "Ejection Fraction"
+    unit: "%"
+    confidence: high
+    status: confirmed
+    source:
+      - "ISHLT Guidelines"
+      - "Clinical consensus"
+    thresholds:
+      accept:
+        operator: ">"
+        value: 50
+        description: "可接受"
+      reject:
+        operator: "<"
+        value: 40
+        description: "拒绝"
+      gray_zone:
+        min: 45
+        max: 50
+        description: "灰区，需综合评估"
+    baseline_reference: 55
+    notes: "心脏移植供体评估核心指标"
+
+  # 心脏指数 (Cardiac Index)
+  CI:
+    name: "心脏指数"
+    name_en: "Cardiac Index"
+    unit: "L/min/m²"
+    confidence: medium
+    status: confirmed
+    source:
+      - "Hemodynamic guidelines"
+      - "Critical care standards"
+    thresholds:
+      target:
+        min: 2.2
+        max: 2.8
+        description: "目标范围"
+      red_line:
+        operator: "<"
+        value: 2.0
+        description: "红线，需干预"
+      warning:
+        operator: "<"
+        value: 2.2
+        description: "警戒"
+    baseline_reference: 2.5
+    escalation_rule: "CI < 2.0 且复苏无效 → 正性肌力药物"
+
+# -----------------------------------------------------------------------------
+# 2. 血压指标 (Blood Pressure)
+# -----------------------------------------------------------------------------
+blood_pressure:
+  # 平均动脉压 (Mean Arterial Pressure)
+  MAP:
+    name: "平均动脉压"
+    name_en: "Mean Arterial Pressure"
+    unit: "mmHg"
+    confidence: medium
+    status: confirmed
+    source:
+      - "Hemodynamic guidelines"
+      - "Critical care standards"
+    thresholds:
+      target:
+        min: 65
+        max: 80
+        description: "目标范围"
+      red_line:
+        operator: "<"
+        value: 60
+        description: "红线"
+    baseline_reference: 70
+
+  # 主动脉压 (Aortic Pressure) - OCS系统
+  AOP:
+    name: "主动脉压"
+    name_en: "Aortic Pressure"
+    unit: "mmHg"
+    confidence: high
+    status: confirmed
+    source:
+      - "Prot_000 OCS Protocol"
+      - "OCS操作手册"
+    thresholds:
+      operating_range:
+        min: 40
+        max: 100
+        description: "OCS操作范围"
+      warning:
+        operator: "<"
+        value: 70
+        description: "警告线"
+    baseline_reference: 75
+
+# -----------------------------------------------------------------------------
+# 3. 氧代谢指标 (Oxygen Metabolism)
+# -----------------------------------------------------------------------------
+oxygen_metabolism:
+  # 混合静脉血氧饱和度
+  SvO2:
+    name: "混合静脉血氧饱和度"
+    name_en: "Mixed Venous Oxygen Saturation"
+    unit: "%"
+    confidence: medium
+    status: confirmed
+    source:
+      - "Critical care guidelines"
+      - "Hemodynamic monitoring standards"
+    thresholds:
+      target:
+        operator: ">="
+        value: 65
+        description: "目标"
+      red_line:
+        operator: "<"
+        value: 60
+        description: "红线"
+      critical:
+        operator: "<"
+        value: 50
+        description: "危急值，联合CI下降需升级支持"
+    baseline_reference: 70
+    escalation_rule: "SvO2 < 50% + CI下降 → 升级支持（正性肌力/肺血管扩张 ± MCS）"
+
+  # 静脉血氧分压
+  pO2V:
+    name: "静脉血氧分压"
+    name_en: "Venous Partial Pressure of Oxygen"
+    unit: "mmHg"
+    confidence: low
+    status: provisional
+    source:
+      - "Placeholder - 待验证"
+    thresholds:
+      target:
+        min: 35
+        max: 40
+        description: "占位目标范围"
+      red_line:
+        operator: "<"
+        value: 30
+        description: "红线（待验证）"
+    baseline_reference: 38
+    notes: "低信度，需要更多文献验证"
+
+# -----------------------------------------------------------------------------
+# 4. 代谢指标 (Metabolic)
+# -----------------------------------------------------------------------------
+metabolic:
+  # 乳酸
+  Lactate:
+    name: "乳酸"
+    name_en: "Lactate"
+    unit: "mmol/L"
+    confidence: high
+    status: confirmed
+    source:
+      - "OCS Protocol"
+      - "Critical care guidelines"
+      - "Organ preservation standards"
+    thresholds:
+      accept:
+        operator: "<"
+        value: 5
+        description: "可接受"
+      reject:
+        operator: ">"
+        value: 5
+        description: "不合格"
+      ideal:
+        operator: "<"
+        value: 2
+        description: "理想"
+      warning:
+        operator: ">"
+        value: 4
+        description: "警戒"
+    baseline_reference: 1.5
+    notes: "器官灌注质量核心指标"
+
+# -----------------------------------------------------------------------------
+# 5. 心率指标 (Heart Rate)
+# -----------------------------------------------------------------------------
+heart_rate:
+  HR:
+    name: "心率"
+    name_en: "Heart Rate"
+    unit: "bpm"
+    confidence: high
+    status: confirmed
+    source:
+      - "Clinical standards"
+    thresholds:
+      warning_range:
+        min: 110
+        max: 120
+        description: "警戒范围"
+      target:
+        min: 60
+        max: 100
+        description: "正常范围"
+    baseline_reference: 80
+
+# -----------------------------------------------------------------------------
+# 6. 肺血管指标 (Pulmonary Vascular)
+# -----------------------------------------------------------------------------
+pulmonary_vascular:
+  # 肺血管阻力
+  PVR:
+    name: "肺血管阻力"
+    name_en: "Pulmonary Vascular Resistance"
+    unit: "Wood Units"
+    confidence: high
+    status: confirmed
+    source:
+      - "ISHLT Guidelines"
+      - "Heart transplant protocols"
+    thresholds:
+      warning:
+        operator: ">"
+        value: 2.5
+        description: "警戒"
+      red_line:
+        operator: ">"
+        value: 3.0
+        description: "红线"
+      target:
+        operator: "<"
+        value: 2.5
+        description: "目标"
+    baseline_reference: 2.0
+    notes: "受体端重要评估指标"
+
+# -----------------------------------------------------------------------------
+# 7. 冠脉灌注指标 (Coronary Perfusion)
+# -----------------------------------------------------------------------------
+coronary_perfusion:
+  # 冠脉流量
+  CF:
+    name: "冠脉流量"
+    name_en: "Coronary Flow"
+    unit: "mL/min"
+    confidence: high
+    status: confirmed
+    source:
+      - "Prot_000 OCS Protocol"
+      - "OCS操作手册"
+    thresholds:
+      target:
+        min: 400
+        max: 900
+        description: "OCS目标范围"
+    baseline_reference: 650
+    notes: "OCS系统特有指标"
+
+# -----------------------------------------------------------------------------
+# 8. 术后监测指标 (Post-operative Monitoring)
+# -----------------------------------------------------------------------------
+postoperative:
+  # 胸腔引流
+  chest_drainage:
+    name: "胸腔引流量"
+    name_en: "Chest Drainage"
+    unit: "mL/h"
+    confidence: high
+    status: confirmed
+    source:
+      - "Post-surgical protocols"
+      - "ICU guidelines"
+    thresholds:
+      alarm:
+        operator: ">"
+        value: 200
+        duration_hours: 6
+        description: "持续6-8小时 >200mL/h 触发警报"
+    baseline_reference: 50
+    notes: "需要持续监测的时序指标"

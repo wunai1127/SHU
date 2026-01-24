@@ -1,0 +1,212 @@
+# =============================================================================
+# t=0 Baseline 配置 - 初始状态参考基准
+# =============================================================================
+# 用途: 与当前指标对比，评估变化趋势和偏离程度
+# =============================================================================
+
+version: "1.0.0"
+last_updated: "2025-01-24"
+
+# -----------------------------------------------------------------------------
+# Baseline 定义说明
+# -----------------------------------------------------------------------------
+baseline_definition:
+  description: |
+    t=0 baseline 代表器官灌注/监测开始时的初始状态参考值。
+    用于：
+    1. 计算指标变化量 (delta = current - baseline)
+    2. 评估变化趋势 (improving/stable/deteriorating)
+    3. 触发基于变化的警报
+    4. 生成偏离度报告
+
+  time_reference: "t=0 为灌注开始或监测开始时刻"
+
+# -----------------------------------------------------------------------------
+# 确认指标的 Baseline 值
+# -----------------------------------------------------------------------------
+confirmed_baselines:
+  # 心功能
+  EF:
+    baseline_value: 55
+    unit: "%"
+    acceptable_deviation: 5
+    deviation_unit: "%"
+    confidence: high
+
+  CI:
+    baseline_value: 2.5
+    unit: "L/min/m²"
+    acceptable_deviation: 0.3
+    deviation_unit: "L/min/m²"
+    confidence: medium
+
+  # 血压
+  MAP:
+    baseline_value: 70
+    unit: "mmHg"
+    acceptable_deviation: 10
+    deviation_unit: "mmHg"
+    confidence: medium
+
+  AOP:
+    baseline_value: 75
+    unit: "mmHg"
+    acceptable_deviation: 15
+    deviation_unit: "mmHg"
+    confidence: high
+
+  # 氧代谢
+  SvO2:
+    baseline_value: 70
+    unit: "%"
+    acceptable_deviation: 5
+    deviation_unit: "%"
+    confidence: medium
+
+  pO2V:
+    baseline_value: 38
+    unit: "mmHg"
+    acceptable_deviation: 5
+    deviation_unit: "mmHg"
+    confidence: low
+
+  # 代谢
+  Lactate:
+    baseline_value: 1.5
+    unit: "mmol/L"
+    acceptable_deviation: 1.0
+    deviation_unit: "mmol/L"
+    confidence: high
+
+  # 心率
+  HR:
+    baseline_value: 80
+    unit: "bpm"
+    acceptable_deviation: 20
+    deviation_unit: "bpm"
+    confidence: high
+
+  # 肺血管
+  PVR:
+    baseline_value: 2.0
+    unit: "Wood Units"
+    acceptable_deviation: 0.5
+    deviation_unit: "Wood Units"
+    confidence: high
+
+  # 冠脉灌注
+  CF:
+    baseline_value: 650
+    unit: "mL/min"
+    acceptable_deviation: 150
+    deviation_unit: "mL/min"
+    confidence: high
+
+  # 术后
+  chest_drainage:
+    baseline_value: 50
+    unit: "mL/h"
+    acceptable_deviation: 50
+    deviation_unit: "mL/h"
+    confidence: high
+
+# -----------------------------------------------------------------------------
+# Pending 指标的 Baseline 占位
+# -----------------------------------------------------------------------------
+pending_baselines:
+  # 心肌力学 - 无确认baseline，仅记录首次值作为动态baseline
+  Emax:
+    baseline_value: null
+    strategy: "use_first_measurement"
+    notes: "使用首次测量值作为动态baseline"
+
+  max_dPdt:
+    baseline_value: null
+    strategy: "use_first_measurement"
+
+  tau_relaxation:
+    baseline_value: null
+    strategy: "use_first_measurement"
+
+  end_systolic_pressure:
+    baseline_value: null
+    strategy: "use_first_measurement"
+
+  potential_energy_MEC:
+    baseline_value: null
+    strategy: "use_first_measurement"
+
+  contraction_time:
+    baseline_value: null
+    strategy: "use_first_measurement"
+
+  developed_pressure:
+    baseline_value: null
+    strategy: "use_first_measurement"
+
+  # 代谢/电解质
+  GluA:
+    baseline_value: null
+    provisional_baseline: 6.0
+    unit: "mmol/L"
+    strategy: "use_provisional_or_first"
+
+  GluV:
+    baseline_value: null
+    strategy: "use_first_measurement"
+
+  Na_A:
+    baseline_value: null
+    provisional_baseline: 140
+    unit: "mmol/L"
+    strategy: "use_provisional_or_first"
+
+  K_A:
+    baseline_value: null
+    provisional_baseline: 4.0
+    unit: "mmol/L"
+    strategy: "use_provisional_or_first"
+
+  LacA:
+    baseline_value: null
+    strategy: "use_first_measurement"
+
+  CvO2:
+    baseline_value: null
+    strategy: "use_first_measurement"
+
+# -----------------------------------------------------------------------------
+# Baseline 对比规则
+# -----------------------------------------------------------------------------
+comparison_rules:
+  # 变化趋势评估
+  trend_assessment:
+    improving:
+      description: "指标向有利方向变化"
+      action: "继续当前方案"
+
+    stable:
+      description: "指标在可接受偏差范围内"
+      action: "维持监测"
+
+    deteriorating:
+      description: "指标向不利方向变化"
+      action: "评估原因，考虑干预"
+
+  # 偏离度计算方法
+  deviation_calculation:
+    absolute: "delta = current - baseline"
+    percentage: "delta_pct = (current - baseline) / baseline * 100"
+    direction: "positive if improving, negative if deteriorating"
+
+  # 变化率评估（用于时序数据）
+  rate_of_change:
+    rapid:
+      threshold: "> 20% per hour"
+      action: "立即评估"
+    moderate:
+      threshold: "10-20% per hour"
+      action: "加强监测"
+    slow:
+      threshold: "< 10% per hour"
+      action: "常规监测"

@@ -1,0 +1,192 @@
+# =============================================================================
+# 待定指标配置 - 仅监测，无确认阈值
+# =============================================================================
+# 状态: pending (待验证阈值)
+# 操作: monitor_only (仅监测记录)
+# =============================================================================
+
+version: "1.0.0"
+last_updated: "2025-01-24"
+
+# -----------------------------------------------------------------------------
+# 1. 心肌力学指标 (Myocardial Mechanics) - 来自RCVSIM模型
+# -----------------------------------------------------------------------------
+myocardial_mechanics:
+  Emax:
+    name: "最大弹性"
+    name_en: "Maximum Elastance"
+    unit: "mmHg/mL"
+    status: pending
+    action: monitor_only
+    reference_source: "RCVSIM Model"
+    rcvsim_default: null
+    notes: "需要临床验证才能确定阈值"
+
+  end_systolic_pressure:
+    name: "收缩末期压力"
+    name_en: "End Systolic Pressure"
+    unit: "mmHg"
+    status: pending
+    action: monitor_only
+    reference_source: "RCVSIM Model"
+    notes: "与Emax相关的压力-容积环参数"
+
+  max_dPdt:
+    name: "最大压力变化率"
+    name_en: "Maximum dP/dt"
+    unit: "mmHg/s"
+    status: pending
+    action: monitor_only
+    reference_source: "RCVSIM Model"
+    notes: "反映心肌收缩力，阈值待定"
+
+  potential_energy_MEC:
+    name: "势能（心肌能量消耗）"
+    name_en: "Potential Energy (Myocardial Energy Consumption)"
+    unit: "mmHg·mL"
+    status: pending
+    action: monitor_only
+    reference_source: "RCVSIM Model"
+    notes: "压力-容积环派生指标"
+
+  contraction_time:
+    name: "收缩时间"
+    name_en: "Contraction Time"
+    unit: "ms"
+    status: pending
+    action: monitor_only
+    reference_source: "RCVSIM Model"
+    notes: "心动周期时相参数"
+
+  developed_pressure:
+    name: "产生压力"
+    name_en: "Developed Pressure"
+    unit: "mmHg"
+    status: pending
+    action: monitor_only
+    reference_source: "RCVSIM Model"
+    notes: "收缩期压力差"
+
+  tau_relaxation:
+    name: "舒张时间常数"
+    name_en: "Time Constant of Relaxation (Tau)"
+    unit: "ms"
+    status: pending
+    action: monitor_only
+    reference_source: "RCVSIM Model"
+    notes: "心肌舒张功能指标"
+
+# -----------------------------------------------------------------------------
+# 2. 代谢/电解质指标 (Metabolic/Electrolytes)
+# -----------------------------------------------------------------------------
+metabolic_electrolytes:
+  GluA:
+    name: "动脉血糖"
+    name_en: "Arterial Glucose"
+    unit: "mmol/L"
+    status: pending
+    action: monitor_only
+    provisional_range:
+      min: 4.0
+      max: 10.0
+    notes: "灌注液代谢监测，阈值待临床验证"
+
+  GluV:
+    name: "静脉血糖"
+    name_en: "Venous Glucose"
+    unit: "mmol/L"
+    status: pending
+    action: monitor_only
+    notes: "与GluA对比可反映心肌糖代谢"
+
+  Na_A:
+    name: "动脉钠离子"
+    name_en: "Arterial Sodium"
+    unit: "mmol/L"
+    status: pending
+    action: monitor_only
+    provisional_range:
+      min: 135
+      max: 145
+    notes: "电解质平衡监测"
+
+  K_A:
+    name: "动脉钾离子"
+    name_en: "Arterial Potassium"
+    unit: "mmol/L"
+    status: pending
+    action: monitor_only
+    provisional_range:
+      min: 3.5
+      max: 5.0
+    notes: "钾离子异常可影响心律，需重点关注"
+
+  LacA:
+    name: "动脉乳酸"
+    name_en: "Arterial Lactate"
+    unit: "mmol/L"
+    status: pending
+    action: monitor_only
+    notes: "与Lactate指标相关，动静脉差值有意义"
+
+# -----------------------------------------------------------------------------
+# 3. 血气指标 (Blood Gas)
+# -----------------------------------------------------------------------------
+blood_gas:
+  CvO2:
+    name: "静脉血氧含量"
+    name_en: "Venous Oxygen Content"
+    unit: "mL/dL"
+    status: pending
+    action: monitor_only
+    notes: "可计算氧摄取，需要Hb和SvO2"
+
+# -----------------------------------------------------------------------------
+# 4. RCVSIM模型参考参数 (仅供参考，非临床红线)
+# -----------------------------------------------------------------------------
+rcvsim_reference_parameters:
+  description: "以下为RCVSIM心血管模型默认生理参数，仅作为参考/占位，不可作为临床红线"
+  warning: "这些是模型参数，不是临床阈值！"
+
+  Plmax:
+    name: "左心室最大压力"
+    value: 260
+    unit: "mmHg"
+    note: "模型默认值"
+
+  Prmax:
+    name: "右心室最大压力"
+    value: 70
+    unit: "mmHg"
+    note: "模型默认值"
+
+  Cls:
+    name: "左心室顺应性"
+    value: null
+    unit: "mL/mmHg"
+    note: "需查阅RCVSIM文档"
+
+  Crs:
+    name: "右心室顺应性"
+    value: null
+    unit: "mL/mmHg"
+    note: "需查阅RCVSIM文档"
+
+# -----------------------------------------------------------------------------
+# 数据驱动阈值推断说明
+# -----------------------------------------------------------------------------
+data_driven_threshold_notes:
+  description: |
+    对于pending状态的指标，如需补齐阈值，可采用以下方法：
+    1. 文献验证：获取ISHLT 2022指南、PROCEED II、FDA SSED等权威来源
+    2. 数据驱动：使用真实+模拟数据推断风险拐点
+       - 收集足够样本的指标数据
+       - 分析指标与不良结局的关联
+       - 确定风险分层的截断值
+       - 标记为 low confidence
+    3. 专家共识：组织临床专家进行德尔菲法评估
+
+  priority_for_validation:
+    - "max_dPdt - 反映收缩力，临床意义明确"
+    - "tau_relaxation - 舒张功能评估"
+    - "K_A - 钾离子对心律影响大"
