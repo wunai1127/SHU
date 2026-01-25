@@ -5,8 +5,47 @@
 # 策略状态: has_strategy(有策略), no_strategy(无策略), monitor_only(仅监测)
 # =============================================================================
 
-version: "1.0.0"
+version: "2.0.0"
 last_updated: "2025-01-25"
+
+# =============================================================================
+# 权威来源引用
+# =============================================================================
+authoritative_sources:
+  OCS_FDA:
+    name: "TransMedics OCS Heart System - FDA User Guide"
+    key_targets:
+      lactate: "<5 mmol/L and trending down for acceptance"
+      coronary_flow: "650-850 mL/min (optimal 700-800)"
+      aortic_pressure: "60-90 mmHg (~75 mmHg target)"
+    conditioning_drugs:
+      - drug: "Levosimendan"
+        dose: "45 μg/kg bolus"
+        indication: "Cardiac conditioning during OCS"
+    adjunct_therapies:
+      - "Hemofiltration to reduce inflammatory mediators"
+
+  ISHLT_PGD_2014:
+    name: "ISHLT Consensus on Primary Graft Dysfunction (2014)"
+    key_recommendations:
+      - "Early VA-ECMO initiation for severe PGD improves survival"
+      - "Mild PGD: 0.5% mortality vs Severe PGD: 54% mortality"
+      - "PGD grading guides intervention intensity"
+
+  Donor_Management_Consensus:
+    name: "Donor Management Guidelines"
+    recommendations:
+      - drug: "Vasopressin"
+        indication: "Rapid restoration of hemodynamic stability"
+        note: "Preferred over high-dose catecholamines"
+      - "Post-transplant standard: Norepinephrine + Milrinone combination"
+      - "Avoid high-dose catecholamines in donor management"
+
+  ALM_Cardioplegia:
+    name: "Adenosine-Lidocaine-Magnesium Cardioplegia Research"
+    benefits:
+      - "Reduces lactate production during preservation"
+      - "Improved myocardial protection"
 
 # =============================================================================
 # 1. 心功能指标调控策略
@@ -16,6 +55,7 @@ cardiac_function:
   EF:
     indicator_name: "射血分数"
     has_strategy: true
+    source: "OCS FDA User Guide, ISHLT Guidelines"
     abnormalities:
       low_ef:
         condition: "EF < 45%"
@@ -23,19 +63,25 @@ cardiac_function:
         strategies:
           immediate:
             - action: "评估冠脉灌注是否充足"
-              target: "CF 400-900 mL/min"
+              target: "CF 650-850 mL/min"
+              source: "OCS FDA User Guide"
               rationale: "确保心肌氧供"
             - action: "检查灌注液温度"
               target: "34-37°C"
               rationale: "低温可影响心肌收缩"
           if_no_improvement:
-            - action: "考虑正性肌力药物支持"
+            - action: "Levosimendan心肌调理"
+              drug: "Levosimendan 45 μg/kg bolus"
+              source: "OCS FDA User Guide - cardiac conditioning"
+              rationale: "钙增敏剂，增强心肌收缩而不增加氧耗"
+            - action: "常规正性肌力药物"
               drugs: ["多巴酚丁胺 2-10 μg/kg/min", "米力农 0.25-0.75 μg/kg/min"]
               rationale: "增强心肌收缩力"
             - action: "评估器官是否可用"
               criteria: "持续EF<40%且无改善趋势 → 考虑拒绝"
         escalation_trigger: "2个时间窗后无改善"
         kg_triples:
+          - ["EF_Low", "requires_intervention", "Levosimendan"]
           - ["EF_Low", "requires_intervention", "Inotrope_Support"]
           - ["EF_Low", "check_first", "Coronary_Flow"]
           - ["EF_Low", "check_first", "Perfusion_Temperature"]
@@ -66,19 +112,27 @@ cardiac_function:
       critical_ci:
         condition: "CI < 2.0 L/min/m²"
         severity: critical
+        source: "ISHLT PGD Consensus 2014, Donor Management Guidelines"
         strategies:
           immediate:
             - action: "立即启动正性肌力支持"
-              drugs: ["多巴酚丁胺 5-10 μg/kg/min"]
-            - action: "考虑血管活性药物"
+              drugs: ["多巴酚丁胺 5-10 μg/kg/min", "米力农 0.25-0.75 μg/kg/min"]
+              source: "Post-transplant standard protocol"
+            - action: "血管活性药物"
               drugs: ["去甲肾上腺素 0.05-0.3 μg/kg/min"]
+              note: "去甲肾上腺素+米力农是移植后标准方案"
+              source: "Donor Management Guidelines"
           if_no_improvement:
-            - action: "评估机械循环支持"
-              devices: ["IABP", "VA-ECMO"]
+            - action: "早期VA-ECMO评估"
+              indication: "严重PGD (Primary Graft Dysfunction)"
+              evidence: "早期VA-ECMO显著改善严重PGD生存率"
+              source: "ISHLT PGD Consensus 2014"
+              note: "轻度PGD死亡率0.5% vs 重度PGD死亡率54%"
         escalation_trigger: "30分钟无改善"
         kg_triples:
           - ["CI_Critical", "requires_immediate", "Inotrope_Support"]
-          - ["CI_Critical", "escalate_to", "Mechanical_Circulatory_Support"]
+          - ["CI_Critical", "escalate_to", "VA_ECMO"]
+          - ["CI_Critical", "if_PGD", "Early_ECMO_Initiation"]
 
 # =============================================================================
 # 2. 血压指标调控策略
@@ -108,14 +162,21 @@ blood_pressure:
       critical_map:
         condition: "MAP < 60 mmHg"
         severity: critical
+        source: "Donor Management Guidelines"
         strategies:
           immediate:
-            - action: "立即血管活性药物支持"
-              drugs: ["去甲肾上腺素", "血管加压素"]
+            - action: "血管加压素优先"
+              drug: "Vasopressin"
+              rationale: "快速恢复血流动力学稳定"
+              source: "Donor Management Guidelines - preferred over high-dose catecholamines"
+            - action: "去甲肾上腺素"
+              drugs: ["去甲肾上腺素 0.05-0.3 μg/kg/min"]
+              note: "避免高剂量儿茶酚胺"
             - action: "快速容量复苏（如低血容量）"
         kg_triples:
-          - ["MAP_Critical", "requires_immediate", "Vasopressor"]
-          - ["MAP_Critical", "requires_immediate", "Volume_Resuscitation"]
+          - ["MAP_Critical", "requires_immediate", "Vasopressin"]
+          - ["MAP_Critical", "requires_immediate", "Norepinephrine"]
+          - ["MAP_Critical", "avoid", "High_Dose_Catecholamines"]
 
   AOP:
     indicator_name: "主动脉压(OCS)"
@@ -216,6 +277,7 @@ metabolic:
   Lactate:
     indicator_name: "乳酸"
     has_strategy: true
+    source: "OCS FDA User Guide, ISHLT Guidelines"
     abnormalities:
       elevated_lactate:
         condition: "Lactate > 4 mmol/L"
@@ -224,11 +286,16 @@ metabolic:
           immediate:
             - action: "评估灌注是否充足"
               check: ["MAP", "CI", "冠脉流量"]
+              source: "OCS FDA"
             - action: "优化灌注参数"
+              target: "CF 650-850 mL/min, AoP 60-90 mmHg"
+              source: "OCS FDA User Guide"
             - action: "排除灌注液问题"
           monitor:
             - action: "每30分钟复查乳酸趋势"
               key_metric: "乳酸清除率"
+              acceptance_criteria: "<5 mmol/L AND trending down"
+              source: "OCS FDA - organ acceptance criteria"
         kg_triples:
           - ["Lactate_High", "indicates", "Tissue_Hypoperfusion"]
           - ["Lactate_High", "check", "Perfusion_Adequacy"]
@@ -237,12 +304,16 @@ metabolic:
       critical_lactate:
         condition: "Lactate > 5 mmol/L"
         severity: critical
+        source: "OCS FDA User Guide"
         strategies:
           immediate:
             - action: "紧急评估灌注"
             - action: "如趋势持续上升，评估器官质量"
+            - action: "考虑血液滤过减少炎症介质"
+              source: "OCS FDA - hemofiltration adjunct"
           decision:
-            - action: "Lactate持续>5且上升 → 考虑器官不可用"
+            - action: "Lactate持续>5且上升趋势 → 考虑器官不可用"
+              source: "OCS FDA acceptance criteria"
         kg_triples:
           - ["Lactate_Critical", "may_indicate", "Organ_Quality_Issue"]
           - ["Lactate_Critical", "if_rising", "Consider_Organ_Rejection"]
@@ -467,29 +538,39 @@ coronary_perfusion:
   CF:
     indicator_name: "冠脉流量"
     has_strategy: true
+    source: "OCS FDA User Guide"
+    target_range: "650-850 mL/min (optimal 700-800)"
     abnormalities:
       low_cf:
-        condition: "CF < 400 mL/min"
+        condition: "CF < 650 mL/min"
         severity: warning
+        source: "OCS FDA User Guide"
         strategies:
           immediate:
             - action: "检查OCS灌注参数"
+              target: "CF 650-850 mL/min"
+              source: "OCS FDA"
             - action: "检查冠脉插管位置"
             - action: "排除管路阻塞"
           if_no_improvement:
-            - action: "调整灌注压力/流量"
+            - action: "调整灌注压力"
+              target: "AoP 60-90 mmHg (~75 mmHg)"
+              source: "OCS FDA User Guide"
         kg_triples:
           - ["CF_Low", "check", "OCS_Parameters"]
           - ["CF_Low", "check", "Cannula_Position"]
           - ["CF_Low", "exclude", "Circuit_Obstruction"]
+          - ["CF_Low", "target", "650_850_mL_min"]
 
       high_cf:
-        condition: "CF > 900 mL/min"
+        condition: "CF > 850 mL/min"
         severity: warning
+        source: "OCS FDA User Guide"
         strategies:
           immediate:
             - action: "评估是否过度灌注"
-            - action: "调整OCS参数"
+            - action: "调整OCS参数至目标范围"
+              target: "CF 650-850 mL/min"
         kg_triples:
           - ["CF_High", "assess", "Overperfusion"]
           - ["CF_High", "adjust", "OCS_Parameters"]

@@ -101,6 +101,9 @@ class PerfusionMonitor:
         """
         设置baseline（t=30min）
 
+        ⚠️ 重要：baseline设置时立即与阈值对比，识别需要紧急干预的指标
+        这确保了在灌注开始时就能发现并处理异常
+
         Args:
             measurements: 测量值字典
             time_minutes: 时间点（默认30分钟）
@@ -111,7 +114,71 @@ class PerfusionMonitor:
         for indicator, value in measurements.items():
             self.baseline_evaluator.set_dynamic_baseline(indicator, value)
 
+        # ⚠️ 立即检查是否有需要紧急干预的指标
+        urgent_interventions = self._identify_urgent_interventions(self.baseline_data)
+
+        if urgent_interventions:
+            # 自动记录需要紧急关注的干预
+            for ui in urgent_interventions:
+                self.active_interventions[ui['indicator']] = InterventionRecord(
+                    time_initiated=time_minutes,
+                    indicator=ui['indicator'],
+                    abnormality=ui['abnormality'],
+                    action=ui['recommended_action'],
+                    status=InterventionStatus.PENDING,
+                    time_windows_active=[time_minutes]
+                )
+                self.intervention_records.append(self.active_interventions[ui['indicator']])
+
         return self.generate_baseline_report()
+
+    def _identify_urgent_interventions(self, window: TimeWindowData) -> List[Dict[str, Any]]:
+        """
+        识别需要紧急干预的指标
+
+        在baseline出现时立即评估，确保危急情况得到及时处理
+
+        Args:
+            window: 时间窗数据
+
+        Returns:
+            紧急干预列表
+        """
+        urgent = []
+
+        for alert in window.alerts:
+            if alert['level'] == AlertLevel.CRITICAL:
+                indicator = alert['indicator']
+                abnormality = self._get_abnormality_type(indicator, alert)
+
+                # 从知识图谱获取紧急干预建议
+                kg_interventions = self.knowledge_graph.find_interventions(abnormality)
+                immediate_actions = [i for i in kg_interventions if i['urgency'] == 'immediate']
+
+                # 从策略配置获取详细策略
+                strategy_actions = self._get_strategy_interventions(indicator, abnormality)
+                immediate_strategies = [s for s in strategy_actions if s['type'] == 'immediate']
+
+                recommended_action = ""
+                if immediate_actions:
+                    recommended_action = immediate_actions[0]['action']
+                elif immediate_strategies:
+                    recommended_action = immediate_strategies[0]['action']
+                else:
+                    recommended_action = alert.get('action', '需要立即评估')
+
+                urgent.append({
+                    'indicator': indicator,
+                    'abnormality': abnormality,
+                    'value': alert['value'],
+                    'message': alert['message'],
+                    'recommended_action': recommended_action,
+                    'kg_recommendations': immediate_actions,
+                    'strategy_recommendations': immediate_strategies,
+                    'risks': self.knowledge_graph.find_risks(abnormality)
+                })
+
+        return urgent
 
     def process_time_window(self, measurements: Dict[str, float], time_minutes: int) -> TimeWindowData:
         """
@@ -343,6 +410,37 @@ class PerfusionMonitor:
         lines.append(f"🟡 警告: {warning_count}")
         lines.append(f"🟢 正常: {len(self.baseline_data.measurements) - critical_count - warning_count}")
         lines.append("")
+
+        # ⚠️ 紧急干预提示（Baseline时立即显示）
+        if critical_count > 0:
+            lines.append("=" * 70)
+            lines.append("⚠️⚠️⚠️ 立即需要干预 - IMMEDIATE ACTION REQUIRED ⚠️⚠️⚠️")
+            lines.append("=" * 70)
+            lines.append("")
+
+            for indicator, record in self.active_interventions.items():
+                if record.status == InterventionStatus.PENDING:
+                    lines.append(f"### 🚨 {indicator} - {record.abnormality}")
+                    lines.append(f"**建议干预**: {record.action}")
+
+                    # 风险提示
+                    risks = self.knowledge_graph.find_risks(record.abnormality)
+                    if risks:
+                        lines.append(f"**风险**: {', '.join(risks)}")
+
+                    # 详细策略
+                    detailed = self._get_strategy_interventions(indicator, record.abnormality)
+                    if detailed:
+                        lines.append("**详细策略**:")
+                        for d in detailed[:3]:
+                            if d['type'] == 'immediate':
+                                lines.append(f"  - ⚡ {d['action']}")
+                                if 'details' in d and 'drugs' in d['details']:
+                                    lines.append(f"    药物: {', '.join(d['details']['drugs'])}")
+                    lines.append("")
+
+            lines.append("=" * 70)
+            lines.append("")
 
         # 详细警报
         if self.baseline_data.alerts:
