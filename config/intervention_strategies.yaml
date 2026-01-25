@@ -1,0 +1,689 @@
+# =============================================================================
+# 指标异常调控策略配置
+# =============================================================================
+# 结构: 指标 → 异常类型 → 调控策略 → 升级路径
+# 策略状态: has_strategy(有策略), no_strategy(无策略), monitor_only(仅监测)
+# =============================================================================
+
+version: "1.0.0"
+last_updated: "2025-01-25"
+
+# =============================================================================
+# 1. 心功能指标调控策略
+# =============================================================================
+cardiac_function:
+
+  EF:
+    indicator_name: "射血分数"
+    has_strategy: true
+    abnormalities:
+      low_ef:
+        condition: "EF < 45%"
+        severity: critical
+        strategies:
+          immediate:
+            - action: "评估冠脉灌注是否充足"
+              target: "CF 400-900 mL/min"
+              rationale: "确保心肌氧供"
+            - action: "检查灌注液温度"
+              target: "34-37°C"
+              rationale: "低温可影响心肌收缩"
+          if_no_improvement:
+            - action: "考虑正性肌力药物支持"
+              drugs: ["多巴酚丁胺 2-10 μg/kg/min", "米力农 0.25-0.75 μg/kg/min"]
+              rationale: "增强心肌收缩力"
+            - action: "评估器官是否可用"
+              criteria: "持续EF<40%且无改善趋势 → 考虑拒绝"
+        escalation_trigger: "2个时间窗后无改善"
+        kg_triples:
+          - ["EF_Low", "requires_intervention", "Inotrope_Support"]
+          - ["EF_Low", "check_first", "Coronary_Flow"]
+          - ["EF_Low", "check_first", "Perfusion_Temperature"]
+
+  CI:
+    indicator_name: "心脏指数"
+    has_strategy: true
+    abnormalities:
+      low_ci:
+        condition: "CI < 2.2 L/min/m²"
+        severity: warning
+        strategies:
+          immediate:
+            - action: "优化容量状态"
+              method: "评估前负荷，必要时补液"
+              rationale: "Frank-Starling机制"
+            - action: "检查心率是否在目标范围"
+              target: "HR 60-100 bpm"
+              rationale: "CO = HR × SV"
+          if_no_improvement:
+            - action: "启动正性肌力药物"
+              drugs: ["多巴酚丁胺", "米力农"]
+        kg_triples:
+          - ["CI_Low", "first_check", "Volume_Status"]
+          - ["CI_Low", "first_check", "Heart_Rate"]
+          - ["CI_Low", "requires_intervention", "Inotrope_Support"]
+
+      critical_ci:
+        condition: "CI < 2.0 L/min/m²"
+        severity: critical
+        strategies:
+          immediate:
+            - action: "立即启动正性肌力支持"
+              drugs: ["多巴酚丁胺 5-10 μg/kg/min"]
+            - action: "考虑血管活性药物"
+              drugs: ["去甲肾上腺素 0.05-0.3 μg/kg/min"]
+          if_no_improvement:
+            - action: "评估机械循环支持"
+              devices: ["IABP", "VA-ECMO"]
+        escalation_trigger: "30分钟无改善"
+        kg_triples:
+          - ["CI_Critical", "requires_immediate", "Inotrope_Support"]
+          - ["CI_Critical", "escalate_to", "Mechanical_Circulatory_Support"]
+
+# =============================================================================
+# 2. 血压指标调控策略
+# =============================================================================
+blood_pressure:
+
+  MAP:
+    indicator_name: "平均动脉压"
+    has_strategy: true
+    abnormalities:
+      low_map:
+        condition: "MAP < 65 mmHg"
+        severity: warning
+        strategies:
+          immediate:
+            - action: "评估容量状态"
+              method: "CVP/PCWP评估，必要时补液"
+            - action: "检查是否存在血管舒张"
+              signs: ["温暖四肢", "脉压增宽"]
+          if_no_improvement:
+            - action: "血管活性药物"
+              drugs: ["去甲肾上腺素 0.05-0.2 μg/kg/min"]
+        kg_triples:
+          - ["MAP_Low", "first_check", "Volume_Status"]
+          - ["MAP_Low", "requires_intervention", "Vasopressor"]
+
+      critical_map:
+        condition: "MAP < 60 mmHg"
+        severity: critical
+        strategies:
+          immediate:
+            - action: "立即血管活性药物支持"
+              drugs: ["去甲肾上腺素", "血管加压素"]
+            - action: "快速容量复苏（如低血容量）"
+        kg_triples:
+          - ["MAP_Critical", "requires_immediate", "Vasopressor"]
+          - ["MAP_Critical", "requires_immediate", "Volume_Resuscitation"]
+
+  AOP:
+    indicator_name: "主动脉压(OCS)"
+    has_strategy: true
+    abnormalities:
+      low_aop:
+        condition: "AOP < 70 mmHg"
+        severity: warning
+        strategies:
+          immediate:
+            - action: "调整OCS灌注泵流量"
+              method: "增加泵速"
+            - action: "检查灌注管路是否通畅"
+          if_no_improvement:
+            - action: "检查冠脉灌注是否受影响"
+        kg_triples:
+          - ["AOP_Low", "adjust", "OCS_Pump_Flow"]
+          - ["AOP_Low", "check", "Perfusion_Circuit"]
+
+# =============================================================================
+# 3. 氧代谢指标调控策略
+# =============================================================================
+oxygen_metabolism:
+
+  SvO2:
+    indicator_name: "混合静脉血氧饱和度"
+    has_strategy: true
+    abnormalities:
+      low_svo2:
+        condition: "SvO2 < 65%"
+        severity: warning
+        strategies:
+          immediate:
+            - action: "增加氧输送"
+              methods: ["提高FiO2", "优化血红蛋白", "增加心输出量"]
+            - action: "降低氧消耗"
+              methods: ["镇静", "降温（如发热）", "治疗寒战"]
+        kg_triples:
+          - ["SvO2_Low", "increase", "Oxygen_Delivery"]
+          - ["SvO2_Low", "decrease", "Oxygen_Consumption"]
+
+      critical_svo2:
+        condition: "SvO2 < 50%"
+        severity: critical
+        strategies:
+          immediate:
+            - action: "紧急优化心输出量"
+              drugs: ["正性肌力药物"]
+            - action: "检查血红蛋白水平"
+              target: "Hb > 7-8 g/dL"
+          if_no_improvement:
+            - action: "肺血管扩张剂（如合并肺动脉高压）"
+              drugs: ["iNO 20-40 ppm", "前列环素"]
+            - action: "考虑机械循环支持"
+        escalation_trigger: "合并CI下降且30分钟无改善"
+        kg_triples:
+          - ["SvO2_Critical", "requires_immediate", "Cardiac_Output_Optimization"]
+          - ["SvO2_Critical", "combined_with_CI_drop", "MCS_Evaluation"]
+          - ["SvO2_Critical", "if_PAH", "Pulmonary_Vasodilator"]
+
+  pO2V:
+    indicator_name: "静脉血氧分压"
+    has_strategy: true
+    abnormalities:
+      low_pvo2:
+        condition: "pO2V < 35 mmHg"
+        severity: warning
+        strategies:
+          immediate:
+            - action: "评估组织灌注"
+              check: ["乳酸趋势", "毛细血管再充盈时间"]
+            - action: "优化氧输送（同SvO2策略）"
+        kg_triples:
+          - ["pO2V_Low", "indicates", "Tissue_Hypoperfusion"]
+          - ["pO2V_Low", "same_strategy_as", "SvO2_Low"]
+
+  CvO2:
+    indicator_name: "静脉血氧含量"
+    has_strategy: true
+    abnormalities:
+      low_cvo2:
+        condition: "CvO2 < 12 mL/dL"
+        severity: warning
+        strategies:
+          immediate:
+            - action: "检查血红蛋白"
+              rationale: "CvO2 = 1.34 × Hb × SvO2"
+            - action: "优化SvO2（同上述策略）"
+        kg_triples:
+          - ["CvO2_Low", "check", "Hemoglobin_Level"]
+          - ["CvO2_Low", "optimize", "SvO2"]
+
+# =============================================================================
+# 4. 代谢指标调控策略
+# =============================================================================
+metabolic:
+
+  Lactate:
+    indicator_name: "乳酸"
+    has_strategy: true
+    abnormalities:
+      elevated_lactate:
+        condition: "Lactate > 4 mmol/L"
+        severity: warning
+        strategies:
+          immediate:
+            - action: "评估灌注是否充足"
+              check: ["MAP", "CI", "冠脉流量"]
+            - action: "优化灌注参数"
+            - action: "排除灌注液问题"
+          monitor:
+            - action: "每30分钟复查乳酸趋势"
+              key_metric: "乳酸清除率"
+        kg_triples:
+          - ["Lactate_High", "indicates", "Tissue_Hypoperfusion"]
+          - ["Lactate_High", "check", "Perfusion_Adequacy"]
+          - ["Lactate_High", "monitor", "Lactate_Clearance"]
+
+      critical_lactate:
+        condition: "Lactate > 5 mmol/L"
+        severity: critical
+        strategies:
+          immediate:
+            - action: "紧急评估灌注"
+            - action: "如趋势持续上升，评估器官质量"
+          decision:
+            - action: "Lactate持续>5且上升 → 考虑器官不可用"
+        kg_triples:
+          - ["Lactate_Critical", "may_indicate", "Organ_Quality_Issue"]
+          - ["Lactate_Critical", "if_rising", "Consider_Organ_Rejection"]
+
+# =============================================================================
+# 5. 电解质调控策略
+# =============================================================================
+electrolytes:
+
+  K_A:
+    indicator_name: "钾离子"
+    has_strategy: true
+    abnormalities:
+      hypokalemia:
+        condition: "K+ < 3.5 mmol/L"
+        severity: warning
+        strategies:
+          immediate:
+            - action: "补钾"
+              route: "灌注液添加KCl"
+              rate: "10-20 mEq/h（视严重程度）"
+              target: "K+ 4.0-5.0 mmol/L"
+            - action: "监测心电图"
+              watch_for: ["U波", "QT延长", "室性心律失常"]
+        kg_triples:
+          - ["Hypokalemia", "treat_with", "Potassium_Supplementation"]
+          - ["Hypokalemia", "monitor", "ECG_Changes"]
+          - ["Hypokalemia", "risk_of", "Ventricular_Arrhythmia"]
+
+      severe_hypokalemia:
+        condition: "K+ < 3.0 mmol/L"
+        severity: critical
+        strategies:
+          immediate:
+            - action: "紧急补钾"
+              rate: "20-40 mEq/h（中心静脉）"
+            - action: "持续心电监护"
+        kg_triples:
+          - ["Severe_Hypokalemia", "requires_immediate", "IV_Potassium"]
+          - ["Severe_Hypokalemia", "high_risk", "Cardiac_Arrest"]
+
+      hyperkalemia:
+        condition: "K+ > 5.5 mmol/L"
+        severity: warning
+        strategies:
+          immediate:
+            - action: "停止补钾"
+            - action: "钙剂稳定心肌膜"
+              drug: "氯化钙/葡萄糖酸钙"
+            - action: "胰岛素+葡萄糖转移钾"
+              dose: "10U Regular Insulin + 25g Glucose"
+        kg_triples:
+          - ["Hyperkalemia", "stop", "Potassium_Infusion"]
+          - ["Hyperkalemia", "stabilize_with", "Calcium"]
+          - ["Hyperkalemia", "shift_with", "Insulin_Glucose"]
+
+      severe_hyperkalemia:
+        condition: "K+ > 6.5 mmol/L"
+        severity: critical
+        strategies:
+          immediate:
+            - action: "紧急钙剂"
+              drug: "氯化钙 1g IV over 5-10min"
+            - action: "胰岛素+葡萄糖"
+            - action: "考虑透析（如OCS灌注场景不适用）"
+        kg_triples:
+          - ["Severe_Hyperkalemia", "requires_immediate", "Calcium_Chloride"]
+          - ["Severe_Hyperkalemia", "life_threatening", "Cardiac_Arrest"]
+
+  Na_A:
+    indicator_name: "钠离子"
+    has_strategy: true
+    abnormalities:
+      hyponatremia:
+        condition: "Na+ < 130 mmol/L"
+        severity: warning
+        strategies:
+          immediate:
+            - action: "评估灌注液钠浓度"
+            - action: "调整灌注液配方"
+              note: "纠正速度<12 mmol/24h"
+        kg_triples:
+          - ["Hyponatremia", "adjust", "Perfusate_Sodium"]
+          - ["Hyponatremia", "caution", "Correction_Rate"]
+
+      hypernatremia:
+        condition: "Na+ > 150 mmol/L"
+        severity: warning
+        strategies:
+          immediate:
+            - action: "评估灌注液钠浓度"
+            - action: "适当稀释"
+        kg_triples:
+          - ["Hypernatremia", "adjust", "Perfusate_Sodium"]
+
+  GluA:
+    indicator_name: "血糖"
+    has_strategy: true
+    abnormalities:
+      hypoglycemia:
+        condition: "Glucose < 3.9 mmol/L"
+        severity: warning
+        strategies:
+          immediate:
+            - action: "补充葡萄糖"
+              dose: "10-25g IV dextrose"
+            - action: "检查胰岛素输注（如有）"
+        kg_triples:
+          - ["Hypoglycemia", "treat_with", "IV_Dextrose"]
+          - ["Hypoglycemia", "check", "Insulin_Infusion"]
+
+      severe_hypoglycemia:
+        condition: "Glucose < 2.2 mmol/L"
+        severity: critical
+        strategies:
+          immediate:
+            - action: "紧急50%葡萄糖推注"
+              dose: "50mL D50W"
+        kg_triples:
+          - ["Severe_Hypoglycemia", "requires_immediate", "D50W_Bolus"]
+
+      hyperglycemia:
+        condition: "Glucose > 10 mmol/L"
+        severity: warning
+        strategies:
+          immediate:
+            - action: "胰岛素输注"
+              target: "7.8-10 mmol/L"
+              note: "避免过度控制（NICE-SUGAR教训）"
+        kg_triples:
+          - ["Hyperglycemia", "treat_with", "Insulin_Infusion"]
+          - ["Hyperglycemia", "avoid", "Tight_Glucose_Control"]
+
+# =============================================================================
+# 6. 心率调控策略
+# =============================================================================
+heart_rate:
+
+  HR:
+    indicator_name: "心率"
+    has_strategy: true
+    abnormalities:
+      bradycardia:
+        condition: "HR < 60 bpm"
+        severity: warning
+        strategies:
+          immediate:
+            - action: "评估是否需要起搏"
+            - action: "检查药物影响"
+              check: ["β受体阻滞剂", "钙通道阻滞剂"]
+            - action: "阿托品（如血流动力学不稳定）"
+              dose: "0.5-1mg IV"
+        kg_triples:
+          - ["Bradycardia", "consider", "Pacing"]
+          - ["Bradycardia", "check", "Drug_Effect"]
+          - ["Bradycardia", "if_unstable", "Atropine"]
+
+      tachycardia:
+        condition: "HR > 120 bpm"
+        severity: warning
+        strategies:
+          immediate:
+            - action: "查找原因"
+              causes: ["低血容量", "疼痛", "发热", "贫血", "焦虑"]
+            - action: "治疗根本原因"
+          if_no_improvement:
+            - action: "β受体阻滞剂（如无禁忌）"
+              drug: "艾司洛尔"
+        kg_triples:
+          - ["Tachycardia", "find", "Underlying_Cause"]
+          - ["Tachycardia", "may_indicate", "Hypovolemia"]
+          - ["Tachycardia", "may_indicate", "Fever"]
+
+# =============================================================================
+# 7. 肺血管调控策略
+# =============================================================================
+pulmonary_vascular:
+
+  PVR:
+    indicator_name: "肺血管阻力"
+    has_strategy: true
+    abnormalities:
+      elevated_pvr:
+        condition: "PVR > 2.5 Wood Units"
+        severity: warning
+        strategies:
+          immediate:
+            - action: "优化氧合"
+              target: "避免低氧血症"
+            - action: "纠正酸中毒"
+            - action: "避免高碳酸血症"
+          if_no_improvement:
+            - action: "肺血管扩张剂"
+              drugs: ["iNO 20-40 ppm", "前列环素吸入"]
+        kg_triples:
+          - ["PVR_High", "optimize", "Oxygenation"]
+          - ["PVR_High", "correct", "Acidosis"]
+          - ["PVR_High", "treat_with", "Pulmonary_Vasodilator"]
+
+      critical_pvr:
+        condition: "PVR > 3.0 Wood Units"
+        severity: critical
+        strategies:
+          immediate:
+            - action: "iNO启动"
+              dose: "20-40 ppm"
+            - action: "静脉肺血管扩张剂"
+              drugs: ["米力农", "前列环素"]
+          if_no_improvement:
+            - action: "评估右心功能"
+            - action: "考虑右心辅助"
+        kg_triples:
+          - ["PVR_Critical", "requires_immediate", "iNO"]
+          - ["PVR_Critical", "assess", "Right_Heart_Function"]
+          - ["PVR_Critical", "may_need", "RVAD"]
+
+# =============================================================================
+# 8. 冠脉灌注调控策略
+# =============================================================================
+coronary_perfusion:
+
+  CF:
+    indicator_name: "冠脉流量"
+    has_strategy: true
+    abnormalities:
+      low_cf:
+        condition: "CF < 400 mL/min"
+        severity: warning
+        strategies:
+          immediate:
+            - action: "检查OCS灌注参数"
+            - action: "检查冠脉插管位置"
+            - action: "排除管路阻塞"
+          if_no_improvement:
+            - action: "调整灌注压力/流量"
+        kg_triples:
+          - ["CF_Low", "check", "OCS_Parameters"]
+          - ["CF_Low", "check", "Cannula_Position"]
+          - ["CF_Low", "exclude", "Circuit_Obstruction"]
+
+      high_cf:
+        condition: "CF > 900 mL/min"
+        severity: warning
+        strategies:
+          immediate:
+            - action: "评估是否过度灌注"
+            - action: "调整OCS参数"
+        kg_triples:
+          - ["CF_High", "assess", "Overperfusion"]
+          - ["CF_High", "adjust", "OCS_Parameters"]
+
+# =============================================================================
+# 9. 心肌力学指标调控策略
+# =============================================================================
+myocardial_mechanics:
+
+  max_dPdt:
+    indicator_name: "最大压力变化率"
+    has_strategy: true
+    abnormalities:
+      low_dpdt:
+        condition: "dP/dt < 1200 mmHg/s"
+        severity: warning
+        strategies:
+          immediate:
+            - action: "评估前负荷是否充足"
+            - action: "检查冠脉灌注"
+          if_no_improvement:
+            - action: "正性肌力药物"
+              drugs: ["多巴酚丁胺", "米力农"]
+        kg_triples:
+          - ["dPdt_Low", "check", "Preload"]
+          - ["dPdt_Low", "check", "Coronary_Perfusion"]
+          - ["dPdt_Low", "treat_with", "Inotrope"]
+
+      critical_dpdt:
+        condition: "dP/dt < 1000 mmHg/s"
+        severity: critical
+        strategies:
+          immediate:
+            - action: "紧急正性肌力支持"
+            - action: "评估器官质量"
+        kg_triples:
+          - ["dPdt_Critical", "requires_immediate", "Inotrope_Support"]
+          - ["dPdt_Critical", "assess", "Organ_Viability"]
+
+  tau_relaxation:
+    indicator_name: "舒张时间常数"
+    has_strategy: partial
+    abnormalities:
+      elevated_tau:
+        condition: "Tau > 48 ms"
+        severity: warning
+        strategies:
+          available:
+            - action: "优化冠脉灌注"
+              rationale: "缺血可导致舒张功能障碍"
+            - action: "控制心率"
+              rationale: "心率过快影响舒张"
+          limitations:
+            - "舒张功能障碍在离体灌注中干预有限"
+            - "主要作为器官质量评估指标"
+        no_strategy_reason: "离体心脏舒张功能改善手段有限，主要用于评估而非治疗"
+        kg_triples:
+          - ["Tau_High", "indicates", "Diastolic_Dysfunction"]
+          - ["Tau_High", "optimize", "Coronary_Perfusion"]
+          - ["Tau_High", "used_for", "Organ_Quality_Assessment"]
+
+  Emax:
+    indicator_name: "端收缩弹性"
+    has_strategy: true
+    abnormalities:
+      low_emax:
+        condition: "Emax < 1.5 mmHg/mL"
+        severity: warning
+        strategies:
+          immediate:
+            - action: "正性肌力药物"
+              rationale: "Emax反映收缩功能，可被正性肌力药物改善"
+            - action: "优化冠脉灌注"
+        kg_triples:
+          - ["Emax_Low", "indicates", "Reduced_Contractility"]
+          - ["Emax_Low", "treat_with", "Inotrope"]
+
+  end_systolic_pressure:
+    indicator_name: "端收缩压"
+    has_strategy: true
+    abnormalities:
+      low_esp:
+        condition: "ESP < 80 mmHg"
+        severity: warning
+        strategies:
+          immediate:
+            - action: "调整灌注压力"
+            - action: "评估收缩功能"
+        kg_triples:
+          - ["ESP_Low", "adjust", "Perfusion_Pressure"]
+
+      high_esp:
+        condition: "ESP > 140 mmHg"
+        severity: warning
+        strategies:
+          immediate:
+            - action: "评估后负荷"
+            - action: "必要时血管扩张"
+        kg_triples:
+          - ["ESP_High", "indicates", "Increased_Afterload"]
+          - ["ESP_High", "consider", "Vasodilator"]
+
+  developed_pressure:
+    indicator_name: "产生压力"
+    has_strategy: true
+    abnormalities:
+      low_dp:
+        condition: "DP < 70 mmHg"
+        severity: warning
+        strategies:
+          immediate:
+            - action: "正性肌力药物"
+            - action: "优化灌注条件"
+        kg_triples:
+          - ["DP_Low", "treat_with", "Inotrope"]
+          - ["DP_Low", "optimize", "Perfusion_Conditions"]
+
+  contraction_time:
+    indicator_name: "左室射血时间"
+    has_strategy: partial
+    abnormalities:
+      short_lvet:
+        condition: "LVET < 280 ms"
+        severity: info
+        strategies:
+          available:
+            - action: "优化心率（心率影响LVET）"
+            - action: "评估收缩功能"
+          limitations:
+            - "LVET主要用于评估，非直接干预目标"
+        no_strategy_reason: "LVET是收缩功能的反映指标，干预应针对根本原因（如收缩力、心率）"
+        kg_triples:
+          - ["LVET_Short", "indicates", "Reduced_Ejection"]
+          - ["LVET_Short", "assess", "Contractility"]
+
+  potential_energy_PVA:
+    indicator_name: "压力-容积面积"
+    has_strategy: false
+    no_strategy_reason: |
+      PVA是心肌氧耗的反映指标，而非直接干预目标。
+      原因：
+      1. PVA = 外功(SW) + 势能(PE)，是能量代谢指标
+      2. 绝对值个体差异大，主要用于相对变化监测
+      3. 改善PVA的方法是改善收缩功能，应通过其他指标干预
+      4. 在离体灌注中，PVA用于评估心肌效率，不作为治疗目标
+    kg_triples:
+      - ["PVA", "reflects", "Myocardial_Oxygen_Consumption"]
+      - ["PVA", "used_for", "Efficiency_Assessment"]
+      - ["PVA", "no_direct_intervention", "True"]
+
+# =============================================================================
+# 10. 术后监测调控策略
+# =============================================================================
+postoperative:
+
+  chest_drainage:
+    indicator_name: "胸腔引流"
+    has_strategy: true
+    abnormalities:
+      high_drainage:
+        condition: ">200 mL/h 持续6h"
+        severity: critical
+        strategies:
+          immediate:
+            - action: "纠正凝血障碍"
+              check: ["PT/INR", "APTT", "血小板", "纤维蛋白原"]
+            - action: "鱼精蛋白（如肝素残余）"
+            - action: "输注血制品（如需要）"
+              products: ["FFP", "血小板", "冷沉淀"]
+          if_no_improvement:
+            - action: "手术探查"
+        kg_triples:
+          - ["High_Drainage", "check", "Coagulation"]
+          - ["High_Drainage", "if_heparin", "Protamine"]
+          - ["High_Drainage", "if_persistent", "Surgical_Exploration"]
+
+# =============================================================================
+# 无策略指标汇总
+# =============================================================================
+no_strategy_indicators:
+  list:
+    - indicator: "potential_energy_PVA"
+      reason: "能量代谢反映指标，非干预目标，用于效率评估"
+
+    - indicator: "contraction_time (LVET)"
+      reason: "收缩功能的反映指标，干预应针对根本原因"
+      partial_strategy: "可通过调整心率间接影响"
+
+    - indicator: "tau_relaxation"
+      reason: "舒张功能在离体灌注中干预手段有限"
+      partial_strategy: "优化冠脉灌注可能改善"
+
+  explanation: |
+    某些指标虽有阈值，但在离体心脏灌注(OCS)场景下干预手段有限：
+    1. 反映性指标：如PVA反映能量消耗，本身不是干预目标
+    2. 结果性指标：如LVET是收缩功能结果，应干预上游原因
+    3. 场景限制：如舒张功能，在离体灌注中改善手段受限

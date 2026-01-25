@@ -1,0 +1,459 @@
+# =============================================================================
+# 心脏移植灌注知识图谱 Schema 定义
+# =============================================================================
+# 三元组结构: (Subject, Predicate, Object)
+# 用于策略推理和知识检索
+# =============================================================================
+
+version: "1.0.0"
+last_updated: "2025-01-25"
+
+# =============================================================================
+# 实体类型定义 (Entity Types)
+# =============================================================================
+entity_types:
+  Indicator:
+    description: "监测指标"
+    examples: ["EF", "CI", "MAP", "Lactate", "K_A"]
+
+  Abnormality:
+    description: "指标异常状态"
+    examples: ["EF_Low", "CI_Critical", "Hyperkalemia"]
+
+  Intervention:
+    description: "干预措施"
+    examples: ["Inotrope_Support", "Vasopressor", "Volume_Resuscitation"]
+
+  Drug:
+    description: "药物"
+    examples: ["Dobutamine", "Norepinephrine", "Milrinone", "Insulin"]
+
+  Device:
+    description: "设备/装置"
+    examples: ["IABP", "VA_ECMO", "RVAD", "OCS"]
+
+  Condition:
+    description: "临床状态/条件"
+    examples: ["Tissue_Hypoperfusion", "Diastolic_Dysfunction", "PAH"]
+
+  Parameter:
+    description: "可调参数"
+    examples: ["OCS_Pump_Flow", "Perfusion_Temperature", "FiO2"]
+
+  Risk:
+    description: "风险/并发症"
+    examples: ["Cardiac_Arrest", "Ventricular_Arrhythmia", "Organ_Rejection"]
+
+  Assessment:
+    description: "评估项目"
+    examples: ["Organ_Quality_Assessment", "Right_Heart_Function"]
+
+# =============================================================================
+# 关系类型定义 (Relation Types / Predicates)
+# =============================================================================
+relation_types:
+  # 因果/指示关系
+  indicates:
+    description: "指标异常指示某种状态"
+    example: "(SvO2_Low, indicates, Tissue_Hypoperfusion)"
+
+  causes:
+    description: "导致"
+    example: "(Hyperkalemia, causes, Cardiac_Arrest)"
+
+  risk_of:
+    description: "有...风险"
+    example: "(Hypokalemia, risk_of, Ventricular_Arrhythmia)"
+
+  # 干预关系
+  requires_intervention:
+    description: "需要干预"
+    example: "(EF_Low, requires_intervention, Inotrope_Support)"
+
+  requires_immediate:
+    description: "需要立即干预"
+    example: "(CI_Critical, requires_immediate, Inotrope_Support)"
+
+  treat_with:
+    description: "用...治疗"
+    example: "(Hyperkalemia, treat_with, Insulin_Glucose)"
+
+  # 检查/评估关系
+  first_check:
+    description: "首先检查"
+    example: "(CI_Low, first_check, Volume_Status)"
+
+  check:
+    description: "检查"
+    example: "(CF_Low, check, Cannula_Position)"
+
+  assess:
+    description: "评估"
+    example: "(PVR_Critical, assess, Right_Heart_Function)"
+
+  # 调整关系
+  adjust:
+    description: "调整参数"
+    example: "(AOP_Low, adjust, OCS_Pump_Flow)"
+
+  optimize:
+    description: "优化"
+    example: "(SvO2_Low, optimize, Oxygen_Delivery)"
+
+  # 升级关系
+  escalate_to:
+    description: "升级到"
+    example: "(CI_Critical, escalate_to, Mechanical_Circulatory_Support)"
+
+  if_no_improvement:
+    description: "如无改善则"
+    example: "(Inotrope_Support, if_no_improvement, MCS_Evaluation)"
+
+  # 条件关系
+  combined_with:
+    description: "联合/合并"
+    example: "(SvO2_Critical, combined_with_CI_drop, MCS_Evaluation)"
+
+  if_condition:
+    description: "如果条件满足"
+    example: "(SvO2_Critical, if_PAH, Pulmonary_Vasodilator)"
+
+  # 药物/设备关系
+  uses_drug:
+    description: "使用药物"
+    example: "(Inotrope_Support, uses_drug, Dobutamine)"
+
+  uses_device:
+    description: "使用设备"
+    example: "(MCS, uses_device, VA_ECMO)"
+
+  # 评估用途
+  used_for:
+    description: "用于"
+    example: "(Tau_High, used_for, Organ_Quality_Assessment)"
+
+  same_strategy_as:
+    description: "策略同"
+    example: "(pO2V_Low, same_strategy_as, SvO2_Low)"
+
+# =============================================================================
+# 核心知识图谱三元组 (策略相关)
+# =============================================================================
+strategy_triples:
+  # -------------------------------------------------------------------------
+  # 心功能相关
+  # -------------------------------------------------------------------------
+  cardiac_function:
+    - subject: "EF_Low"
+      predicate: "requires_intervention"
+      object: "Inotrope_Support"
+
+    - subject: "EF_Low"
+      predicate: "check_first"
+      object: "Coronary_Flow"
+
+    - subject: "CI_Low"
+      predicate: "first_check"
+      object: "Volume_Status"
+
+    - subject: "CI_Low"
+      predicate: "first_check"
+      object: "Heart_Rate"
+
+    - subject: "CI_Critical"
+      predicate: "requires_immediate"
+      object: "Inotrope_Support"
+
+    - subject: "CI_Critical"
+      predicate: "escalate_to"
+      object: "Mechanical_Circulatory_Support"
+
+  # -------------------------------------------------------------------------
+  # 血压相关
+  # -------------------------------------------------------------------------
+  blood_pressure:
+    - subject: "MAP_Low"
+      predicate: "first_check"
+      object: "Volume_Status"
+
+    - subject: "MAP_Low"
+      predicate: "requires_intervention"
+      object: "Vasopressor"
+
+    - subject: "MAP_Critical"
+      predicate: "requires_immediate"
+      object: "Vasopressor"
+
+    - subject: "AOP_Low"
+      predicate: "adjust"
+      object: "OCS_Pump_Flow"
+
+  # -------------------------------------------------------------------------
+  # 氧代谢相关
+  # -------------------------------------------------------------------------
+  oxygen_metabolism:
+    - subject: "SvO2_Low"
+      predicate: "increase"
+      object: "Oxygen_Delivery"
+
+    - subject: "SvO2_Low"
+      predicate: "decrease"
+      object: "Oxygen_Consumption"
+
+    - subject: "SvO2_Critical"
+      predicate: "requires_immediate"
+      object: "Cardiac_Output_Optimization"
+
+    - subject: "SvO2_Critical"
+      predicate: "combined_with_CI_drop"
+      object: "MCS_Evaluation"
+
+    - subject: "SvO2_Critical"
+      predicate: "if_PAH"
+      object: "Pulmonary_Vasodilator"
+
+    - subject: "pO2V_Low"
+      predicate: "indicates"
+      object: "Tissue_Hypoperfusion"
+
+    - subject: "pO2V_Low"
+      predicate: "same_strategy_as"
+      object: "SvO2_Low"
+
+  # -------------------------------------------------------------------------
+  # 代谢相关
+  # -------------------------------------------------------------------------
+  metabolic:
+    - subject: "Lactate_High"
+      predicate: "indicates"
+      object: "Tissue_Hypoperfusion"
+
+    - subject: "Lactate_High"
+      predicate: "check"
+      object: "Perfusion_Adequacy"
+
+    - subject: "Lactate_Critical"
+      predicate: "may_indicate"
+      object: "Organ_Quality_Issue"
+
+    - subject: "Lactate_Critical"
+      predicate: "if_rising"
+      object: "Consider_Organ_Rejection"
+
+  # -------------------------------------------------------------------------
+  # 电解质相关
+  # -------------------------------------------------------------------------
+  electrolytes:
+    - subject: "Hypokalemia"
+      predicate: "treat_with"
+      object: "Potassium_Supplementation"
+
+    - subject: "Hypokalemia"
+      predicate: "risk_of"
+      object: "Ventricular_Arrhythmia"
+
+    - subject: "Severe_Hypokalemia"
+      predicate: "requires_immediate"
+      object: "IV_Potassium"
+
+    - subject: "Hyperkalemia"
+      predicate: "stop"
+      object: "Potassium_Infusion"
+
+    - subject: "Hyperkalemia"
+      predicate: "stabilize_with"
+      object: "Calcium"
+
+    - subject: "Hyperkalemia"
+      predicate: "shift_with"
+      object: "Insulin_Glucose"
+
+    - subject: "Severe_Hyperkalemia"
+      predicate: "requires_immediate"
+      object: "Calcium_Chloride"
+
+    - subject: "Severe_Hyperkalemia"
+      predicate: "life_threatening"
+      object: "Cardiac_Arrest"
+
+  # -------------------------------------------------------------------------
+  # 肺血管相关
+  # -------------------------------------------------------------------------
+  pulmonary:
+    - subject: "PVR_High"
+      predicate: "optimize"
+      object: "Oxygenation"
+
+    - subject: "PVR_High"
+      predicate: "correct"
+      object: "Acidosis"
+
+    - subject: "PVR_High"
+      predicate: "treat_with"
+      object: "Pulmonary_Vasodilator"
+
+    - subject: "PVR_Critical"
+      predicate: "requires_immediate"
+      object: "iNO"
+
+    - subject: "PVR_Critical"
+      predicate: "may_need"
+      object: "RVAD"
+
+  # -------------------------------------------------------------------------
+  # 心肌力学相关
+  # -------------------------------------------------------------------------
+  myocardial_mechanics:
+    - subject: "dPdt_Low"
+      predicate: "check"
+      object: "Preload"
+
+    - subject: "dPdt_Low"
+      predicate: "treat_with"
+      object: "Inotrope"
+
+    - subject: "Tau_High"
+      predicate: "indicates"
+      object: "Diastolic_Dysfunction"
+
+    - subject: "Tau_High"
+      predicate: "used_for"
+      object: "Organ_Quality_Assessment"
+
+    - subject: "Emax_Low"
+      predicate: "indicates"
+      object: "Reduced_Contractility"
+
+    - subject: "Emax_Low"
+      predicate: "treat_with"
+      object: "Inotrope"
+
+    - subject: "PVA"
+      predicate: "reflects"
+      object: "Myocardial_Oxygen_Consumption"
+
+    - subject: "PVA"
+      predicate: "no_direct_intervention"
+      object: "True"
+
+# =============================================================================
+# 药物知识三元组
+# =============================================================================
+drug_knowledge:
+  inotropes:
+    - subject: "Dobutamine"
+      predicate: "mechanism"
+      object: "Beta1_Agonist"
+
+    - subject: "Dobutamine"
+      predicate: "dose_range"
+      object: "2-10_mcg/kg/min"
+
+    - subject: "Dobutamine"
+      predicate: "indication"
+      object: "Low_Cardiac_Output"
+
+    - subject: "Milrinone"
+      predicate: "mechanism"
+      object: "PDE3_Inhibitor"
+
+    - subject: "Milrinone"
+      predicate: "dose_range"
+      object: "0.25-0.75_mcg/kg/min"
+
+    - subject: "Milrinone"
+      predicate: "additional_effect"
+      object: "Pulmonary_Vasodilation"
+
+  vasopressors:
+    - subject: "Norepinephrine"
+      predicate: "mechanism"
+      object: "Alpha_Agonist"
+
+    - subject: "Norepinephrine"
+      predicate: "dose_range"
+      object: "0.05-0.3_mcg/kg/min"
+
+    - subject: "Norepinephrine"
+      predicate: "indication"
+      object: "Low_MAP"
+
+  pulmonary_vasodilators:
+    - subject: "iNO"
+      predicate: "mechanism"
+      object: "Pulmonary_Vasodilation"
+
+    - subject: "iNO"
+      predicate: "dose_range"
+      object: "20-40_ppm"
+
+    - subject: "iNO"
+      predicate: "indication"
+      object: "Elevated_PVR"
+
+# =============================================================================
+# 升级路径图谱
+# =============================================================================
+escalation_pathways:
+  hemodynamic_instability:
+    path:
+      - step: 1
+        trigger: "CI_Low OR MAP_Low"
+        action: "Volume_Optimization"
+        next_if_fail: 2
+
+      - step: 2
+        trigger: "No improvement after 30min"
+        action: "Inotrope_Support"
+        drugs: ["Dobutamine", "Milrinone"]
+        next_if_fail: 3
+
+      - step: 3
+        trigger: "No improvement after 60min"
+        action: "Add_Vasopressor"
+        drugs: ["Norepinephrine"]
+        next_if_fail: 4
+
+      - step: 4
+        trigger: "No improvement after 120min"
+        action: "MCS_Evaluation"
+        devices: ["IABP", "VA_ECMO"]
+
+  right_heart_failure:
+    path:
+      - step: 1
+        trigger: "PVR_High"
+        action: "Optimize_Oxygenation"
+        next_if_fail: 2
+
+      - step: 2
+        trigger: "PVR > 3.0 WU"
+        action: "iNO"
+        next_if_fail: 3
+
+      - step: 3
+        trigger: "No improvement"
+        action: "IV_Pulmonary_Vasodilator"
+        drugs: ["Milrinone", "Prostacyclin"]
+        next_if_fail: 4
+
+      - step: 4
+        trigger: "RV failure"
+        action: "RVAD_Evaluation"
+
+  organ_quality_concern:
+    path:
+      - step: 1
+        trigger: "Lactate > 4 mmol/L"
+        action: "Optimize_Perfusion"
+        next_if_fail: 2
+
+      - step: 2
+        trigger: "Lactate > 5 mmol/L AND rising"
+        action: "Extended_Evaluation"
+        duration: "60 min"
+        next_if_fail: 3
+
+      - step: 3
+        trigger: "No improvement in lactate clearance"
+        action: "Consider_Organ_Rejection"
