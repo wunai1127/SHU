@@ -102,11 +102,12 @@ class KGEvidenceCollector:
             'high': ['lactic acidosis', 'hyperlactatemia', 'elevated lactate', 'tissue hypoperfusion'],
             'keywords': ['lactate', 'lactic acid'],
             'target_min': 0,
-            'target_max': 2.0,
+            'target_max': 4.0,  # 灌注期间允许稍高
             'unit': 'mmol/L'
         },
         'SvO2': {
             'low': ['tissue hypoxia', 'low SvO2', 'oxygen extraction', 'low cardiac output'],
+            'high': ['shunting', 'sepsis', 'mitochondrial dysfunction'],
             'keywords': ['mixed venous oxygen', 'SvO2', 'venous saturation'],
             'target_min': 65,
             'target_max': 80,
@@ -118,6 +119,51 @@ class KGEvidenceCollector:
             'target_min': 2.2,
             'target_max': 4.0,
             'unit': 'L/min/m²'
+        },
+        'Na_A': {
+            'low': ['hyponatremia', 'cerebral edema', 'seizure'],
+            'high': ['hypernatremia', 'dehydration', 'hyperosmolarity'],
+            'keywords': ['sodium', 'Na+', 'electrolyte'],
+            'target_min': 135,
+            'target_max': 145,
+            'unit': 'mmol/L'
+        },
+        'GluA': {
+            'low': ['hypoglycemia', 'neuroglycopenia', 'altered consciousness'],
+            'high': ['hyperglycemia', 'diabetic ketoacidosis', 'hyperosmolar'],
+            'keywords': ['glucose', 'blood sugar'],
+            'target_min': 4.0,
+            'target_max': 10.0,  # 围术期允许稍高
+            'unit': 'mmol/L'
+        },
+        'pO2V': {
+            'low': ['venous hypoxemia', 'tissue hypoxia', 'increased oxygen extraction'],
+            'keywords': ['venous pO2', 'mixed venous oxygen tension'],
+            'target_min': 35,
+            'target_max': 45,
+            'unit': 'mmHg'
+        },
+        'pO2A': {
+            'low': ['hypoxemia', 'respiratory failure', 'shunt'],
+            'keywords': ['arterial pO2', 'oxygenation'],
+            'target_min': 80,
+            'target_max': 300,  # 高FiO2时可更高
+            'unit': 'mmHg'
+        },
+        'pH': {
+            'low': ['acidosis', 'metabolic acidosis', 'respiratory acidosis'],
+            'high': ['alkalosis', 'metabolic alkalosis', 'respiratory alkalosis'],
+            'keywords': ['pH', 'acid-base', 'hydrogen ion'],
+            'target_min': 7.35,
+            'target_max': 7.45,
+            'unit': ''
+        },
+        'CF': {
+            'low': ['coronary hypoperfusion', 'myocardial ischemia', 'graft dysfunction'],
+            'keywords': ['coronary flow', 'myocardial perfusion'],
+            'target_min': 0.5,  # L/min
+            'target_max': 2.0,
+            'unit': 'L/min'
         },
         'K_A': {
             'low': ['hypokalemia', 'low potassium'],
@@ -443,6 +489,206 @@ class LLMStrategyGenerator:
             'monitoring': ['SvO2: 持续监测', 'CI: 每小时', '体温: 每小时', 'Lactate: 每2小时'],
             'confidence': 0.80,
             'warnings': ['SvO2过高可能提示分流或组织利用障碍', '镇静过深可致呼吸抑制']
+        },
+        'SvO2_High': {
+            'intervention': '评估组织氧利用',
+            'intervention_details': {
+                'drug': '病因治疗',
+                'dose': '根据病因：脓毒症抗感染、线粒体功能障碍支持治疗',
+                'target': 'SvO2 65-80%'
+            },
+            'target_value': 72,
+            'target_range': [65, 80],
+            'reasoning_chain': [
+                'Step 1 - 观察: SvO2 > 80%，混合静脉血氧饱和度异常升高',
+                'Step 2 - 病理生理分析: 可能提示组织氧摄取障碍、分流或线粒体功能障碍',
+                'Step 3 - 机制关联: [Evidence] 脓毒症/线粒体损伤→组织无法利用氧→SvO2升高',
+                'Step 4 - 干预选择: 排查脓毒症、评估微循环、支持治疗',
+                'Step 5 - 预期效果: 明确病因后针对性治疗'
+            ],
+            'monitoring': ['SvO2: 持续监测', 'Lactate: 每1小时', '感染指标: 每4小时'],
+            'confidence': 0.70,
+            'warnings': ['SvO2高不代表氧供充足', '需结合Lactate综合判断', '警惕脓毒症']
+        },
+        'Na_A_Low': {
+            'intervention': '纠正低钠血症',
+            'intervention_details': {
+                'drug': '高渗盐水 (3% NaCl)',
+                'dose': '急性症状性：3% NaCl 100-150mL/20min；慢性：限水+口服盐',
+                'target': 'Na+ > 130 mmol/L'
+            },
+            'target_value': 138,
+            'target_range': [135, 145],
+            'reasoning_chain': [
+                'Step 1 - 观察: Na+ < 135 mmol/L，存在低钠血症',
+                'Step 2 - 病理生理分析: 低钠致细胞水肿，严重者脑水肿、癫痫',
+                'Step 3 - 机制关联: [Evidence] 低钠→细胞外渗透压降低→细胞水肿',
+                'Step 4 - 干预选择: 急性有症状用高渗盐水，纠正速度≤10 mmol/L/24h',
+                'Step 5 - 预期效果: Na+逐步恢复，症状改善'
+            ],
+            'monitoring': ['Na+: 每2-4小时', '神经系统症状: 持续', '尿量: 每小时'],
+            'confidence': 0.85,
+            'warnings': ['纠正过快可致渗透性脱髓鞘', '限速≤10 mmol/L/24h', '监测神经症状']
+        },
+        'Na_A_High': {
+            'intervention': '纠正高钠血症',
+            'intervention_details': {
+                'drug': '低渗液体 (5% 葡萄糖 / 0.45% NaCl)',
+                'dose': '计算自由水缺失，24-48小时缓慢纠正',
+                'target': 'Na+ < 145 mmol/L'
+            },
+            'target_value': 142,
+            'target_range': [135, 145],
+            'reasoning_chain': [
+                'Step 1 - 观察: Na+ > 145 mmol/L，存在高钠血症',
+                'Step 2 - 病理生理分析: 高钠致细胞脱水，神经系统功能障碍',
+                'Step 3 - 机制关联: [Evidence] 高钠→细胞外高渗→细胞脱水',
+                'Step 4 - 干预选择: 补充自由水，降低渗透压',
+                'Step 5 - 预期效果: Na+逐步恢复正常'
+            ],
+            'monitoring': ['Na+: 每4小时', '神经系统: 持续', '血容量: 评估'],
+            'confidence': 0.80,
+            'warnings': ['纠正过快可致脑水肿', '每小时降低≤0.5 mmol/L']
+        },
+        'GluA_High': {
+            'intervention': '血糖控制',
+            'intervention_details': {
+                'drug': '胰岛素 (Regular Insulin)',
+                'dose': '静脉泵注 0.5-2 U/h，目标血糖 6-10 mmol/L',
+                'target': 'Glucose 6-10 mmol/L'
+            },
+            'target_value': 8.0,
+            'target_range': [6.0, 10.0],
+            'reasoning_chain': [
+                'Step 1 - 观察: 血糖 > 10 mmol/L，存在高血糖',
+                'Step 2 - 病理生理分析: 高血糖致渗透性利尿、免疫功能受损',
+                'Step 3 - 机制关联: [Evidence] 应激/糖皮质激素→胰岛素抵抗→高血糖',
+                'Step 4 - 干预选择: 胰岛素持续泵注，避免低血糖',
+                'Step 5 - 预期效果: 血糖控制在目标范围'
+            ],
+            'monitoring': ['血糖: 每1小时', 'K+: 每4小时', '酮体: 必要时'],
+            'confidence': 0.85,
+            'warnings': ['避免低血糖', '胰岛素可致低钾', '监测血钾']
+        },
+        'GluA_Low': {
+            'intervention': '纠正低血糖',
+            'intervention_details': {
+                'drug': '葡萄糖',
+                'dose': '50% 葡萄糖 50mL IV，后10% 葡萄糖维持',
+                'target': 'Glucose > 4 mmol/L'
+            },
+            'target_value': 6.0,
+            'target_range': [4.0, 10.0],
+            'reasoning_chain': [
+                'Step 1 - 观察: 血糖 < 4 mmol/L，存在低血糖',
+                'Step 2 - 病理生理分析: 低血糖致神经功能障碍、意识改变',
+                'Step 3 - 机制关联: [Evidence] 葡萄糖不足→神经元能量缺乏→功能障碍',
+                'Step 4 - 干预选择: 立即补充葡萄糖',
+                'Step 5 - 预期效果: 血糖迅速恢复，症状改善'
+            ],
+            'monitoring': ['血糖: 每15-30分钟', '神经系统: 持续评估'],
+            'confidence': 0.95,
+            'warnings': ['低血糖是急症，需立即处理', '查找低血糖原因']
+        },
+        'pH_Low': {
+            'intervention': '纠正酸中毒',
+            'intervention_details': {
+                'drug': '碳酸氢钠 (严重时) / 病因治疗',
+                'dose': 'pH < 7.1时：NaHCO3 1-2 mEq/kg IV；优先纠正病因',
+                'target': 'pH 7.35-7.45'
+            },
+            'target_value': 7.40,
+            'target_range': [7.35, 7.45],
+            'reasoning_chain': [
+                'Step 1 - 观察: pH < 7.35，存在酸中毒',
+                'Step 2 - 病理生理分析: 酸中毒抑制心肌收缩力、血管对儿茶酚胺反应性降低',
+                'Step 3 - 机制关联: [Evidence] 乳酸堆积/CO2潴留→H+增加→酸中毒',
+                'Step 4 - 干预选择: 优先纠正病因（改善灌注/通气），严重时补碱',
+                'Step 5 - 预期效果: pH恢复正常'
+            ],
+            'monitoring': ['pH/血气: 每1-2小时', 'Lactate: 每1小时', 'K+: 每2小时'],
+            'confidence': 0.80,
+            'warnings': ['补碱可能加重细胞内酸中毒', '优先纠正病因', '注意低钾']
+        },
+        'pH_High': {
+            'intervention': '纠正碱中毒',
+            'intervention_details': {
+                'drug': '病因治疗 / 氯化物补充',
+                'dose': '代谢性：补充Cl-（0.9% NaCl）；呼吸性：调整通气',
+                'target': 'pH 7.35-7.45'
+            },
+            'target_value': 7.40,
+            'target_range': [7.35, 7.45],
+            'reasoning_chain': [
+                'Step 1 - 观察: pH > 7.45，存在碱中毒',
+                'Step 2 - 病理生理分析: 碱中毒致低钾、低钙、心律失常',
+                'Step 3 - 机制关联: [Evidence] 呕吐/利尿/过度通气→H+丢失→碱中毒',
+                'Step 4 - 干预选择: 代谢性补氯，呼吸性调整通气参数',
+                'Step 5 - 预期效果: pH恢复正常'
+            ],
+            'monitoring': ['pH/血气: 每2小时', 'K+: 每2小时', 'ECG: 持续'],
+            'confidence': 0.75,
+            'warnings': ['注意低钾血症', '碱中毒可致心律失常']
+        },
+        'pO2V_Low': {
+            'intervention': '改善静脉血氧合',
+            'intervention_details': {
+                'drug': '正性肌力药 + 优化氧输送',
+                'dose': '多巴酚丁胺 2.5-10 μg/kg/min；必要时输血',
+                'target': 'pO2V 35-45 mmHg'
+            },
+            'target_value': 40,
+            'target_range': [35, 45],
+            'reasoning_chain': [
+                'Step 1 - 观察: pO2V降低，静脉血氧分压不足',
+                'Step 2 - 病理生理分析: 反映组织氧摄取增加或氧输送不足',
+                'Step 3 - 机制关联: [Evidence] 心输出量低/Hb低→DO2不足→pO2V降低',
+                'Step 4 - 干预选择: 增加心输出量，必要时输血',
+                'Step 5 - 预期效果: pO2V恢复至正常范围'
+            ],
+            'monitoring': ['pO2V: 每1小时', 'SvO2: 每30分钟', 'CI: 每小时'],
+            'confidence': 0.75,
+            'warnings': ['需综合评估DO2', '注意Hb水平']
+        },
+        'pO2V_High': {
+            'intervention': '评估高静脉氧分压',
+            'intervention_details': {
+                'drug': '病因排查',
+                'dose': '评估是否存在分流、脓毒症、线粒体功能障碍',
+                'target': 'pO2V 35-45 mmHg'
+            },
+            'target_value': 40,
+            'target_range': [35, 45],
+            'reasoning_chain': [
+                'Step 1 - 观察: pO2V升高，静脉血氧分压过高',
+                'Step 2 - 病理生理分析: 可能提示组织氧摄取障碍',
+                'Step 3 - 机制关联: [Evidence] 分流/线粒体损伤→组织无法利用氧→pO2V升高',
+                'Step 4 - 干预选择: 排查病因，针对性治疗',
+                'Step 5 - 预期效果: 明确并处理病因'
+            ],
+            'monitoring': ['pO2V: 每1小时', 'Lactate: 每1小时', '感染指标: 评估'],
+            'confidence': 0.65,
+            'warnings': ['pO2V高不代表氧供充足', '需结合Lactate判断']
+        },
+        'CF_Low': {
+            'intervention': '优化冠脉灌注',
+            'intervention_details': {
+                'drug': '血管活性药 + 容量优化',
+                'dose': '提升灌注压，去甲肾上腺素滴定MAP > 65 mmHg',
+                'target': 'CF > 0.5 L/min'
+            },
+            'target_value': 0.8,
+            'target_range': [0.5, 1.5],
+            'reasoning_chain': [
+                'Step 1 - 观察: CF降低，冠脉灌注流量不足',
+                'Step 2 - 病理生理分析: 冠脉灌注不足可致心肌缺血、移植心功能障碍',
+                'Step 3 - 机制关联: [Evidence] 低灌注压/冠脉阻力高→CF降低→心肌缺血',
+                'Step 4 - 干预选择: 提升灌注压，优化前负荷',
+                'Step 5 - 预期效果: CF恢复，心肌灌注改善'
+            ],
+            'monitoring': ['CF: 每30分钟', 'MAP: 每5分钟', 'Lactate: 每1小时', 'ECG: 持续'],
+            'confidence': 0.80,
+            'warnings': ['CF降低提示移植心缺血风险', '监测心肌酶谱']
         }
     }
 
