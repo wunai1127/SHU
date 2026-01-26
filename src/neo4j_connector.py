@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_CONFIG = {
     'uri': os.getenv('NEO4J_URI', 'bolt://localhost:7687'),
     'user': os.getenv('NEO4J_USER', 'neo4j'),
-    'password': os.getenv('NEO4J_PASSWORD', ''),  # 需要用户提供
+    'password': os.getenv('NEO4J_PASSWORD', 'wunai1127'),
     'database': os.getenv('NEO4J_DATABASE', 'backup'),
 }
 
@@ -43,6 +43,12 @@ class Neo4jKnowledgeGraph:
 
         if not self.password:
             raise ValueError("密码未提供。请设置环境变量 NEO4J_PASSWORD 或传入 password 参数")
+
+        # 验证连接
+        try:
+            self.driver.verify_connectivity()
+        except Exception as e:
+            raise ConnectionError(f"无法连接Neo4j: {e}")
 
         self.driver = GraphDatabase.driver(self.uri, auth=(self.user, self.password))
         logger.info(f"Connected to Neo4j at {self.uri}, database: {self.database}")
