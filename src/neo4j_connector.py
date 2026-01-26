@@ -118,56 +118,188 @@ class Neo4jKnowledgeGraph:
 
     # ==================== 灌注决策查询 ====================
 
-    def find_indicator_relations(self, indicator_name: str) -> List[Dict]:
-        """查找指标相关的关系"""
+    def find_complication_causes(self, complication: str) -> List[Dict]:
+        """查找并发症的原因"""
         query = """
         MATCH (a:Entity)-[r:RELATION]->(b:Entity)
-        WHERE toLower(a.name) CONTAINS toLower($indicator)
-           OR toLower(b.name) CONTAINS toLower($indicator)
-        RETURN a.name AS from_entity, a.type AS from_type,
-               properties(r) AS relation_props,
-               b.name AS to_entity, b.type AS to_type
-        LIMIT 50
-        """
-        return self._run_query(query, {'indicator': indicator_name})
-
-    def find_intervention_evidence(self, intervention: str) -> List[Dict]:
-        """查找干预措施的证据"""
-        query = """
-        MATCH (a:Entity)-[r:RELATION]->(b:Entity)
-        WHERE toLower(a.name) CONTAINS toLower($intervention)
-           OR toLower(b.name) CONTAINS toLower($intervention)
-        RETURN a.name AS entity1, a.type AS type1,
-               properties(r) AS relation,
-               b.name AS entity2, b.type AS type2
+        WHERE toLower(b.name) CONTAINS toLower($complication)
+          AND r.type IN ['causes', 'increases_risk', 'leads_to']
+        RETURN a.name AS cause, a.type AS cause_type,
+               r.type AS relation_type, r.origin AS origin,
+               b.name AS complication
+        ORDER BY a.type
         LIMIT 30
         """
-        return self._run_query(query, {'intervention': intervention})
+        return self._run_query(query, {'complication': complication})
 
-    def find_abnormality_path(self, abnormality: str) -> List[Dict]:
-        """查找异常状态的因果路径"""
+    def find_treatment_for_complication(self, complication: str) -> List[Dict]:
+        """查找并发症的治疗方案"""
         query = """
-        MATCH path = (a:Entity)-[r:RELATION*1..3]->(b:Entity)
-        WHERE toLower(a.name) CONTAINS toLower($abnormality)
-        RETURN [node IN nodes(path) | node.name] AS path_nodes,
-               [node IN nodes(path) | node.type] AS path_types,
-               length(path) AS path_length
+        MATCH (treatment:Entity)-[r:RELATION]->(comp:Entity)
+        WHERE toLower(comp.name) CONTAINS toLower($complication)
+          AND treatment.type IN ['treatment_regimen', 'medication', 'surgical_procedure']
+          AND r.type IN ['treats', 'alleviates', 'prevents', 'reduces_risk', 'indicated_for']
+        RETURN treatment.name AS treatment, treatment.type AS treatment_type,
+               r.type AS relation_type,
+               comp.name AS complication
         LIMIT 20
         """
-        return self._run_query(query, {'abnormality': abnormality})
+        return self._run_query(query, {'complication': complication})
+
+    def find_indicator_abnormality_consequences(self, indicator: str) -> List[Dict]:
+        """查找指标异常的后果"""
+        query = """
+        MATCH (ind:Entity)-[r:RELATION]->(consequence:Entity)
+        WHERE toLower(ind.name) CONTAINS toLower($indicator)
+          AND ind.type = 'monitoring_indicator'
+          AND r.type IN ['causes', 'increases_risk', 'indicates', 'associated with', 'monitors']
+        RETURN ind.name AS indicator,
+               r.type AS relation,
+               consequence.name AS consequence,
+               consequence.type AS consequence_type
+        LIMIT 30
+        """
+        return self._run_query(query, {'indicator': indicator})
+
+    def find_medication_effects(self, medication: str) -> List[Dict]:
+        """查找药物的效果和适应症"""
+        query = """
+        MATCH (med:Entity)-[r:RELATION]->(target:Entity)
+        WHERE toLower(med.name) CONTAINS toLower($medication)
+          AND med.type = 'medication'
+        RETURN med.name AS medication,
+               r.type AS relation,
+               target.name AS target,
+               target.type AS target_type
+        LIMIT 30
+        """
+        return self._run_query(query, {'medication': medication})
+
+    def find_risk_factors_for_outcome(self, outcome: str) -> List[Dict]:
+        """查找导致某结局的风险因素"""
+        query = """
+        MATCH (risk:Entity)-[r:RELATION]->(outcome:Entity)
+        WHERE toLower(outcome.name) CONTAINS toLower($outcome)
+          AND risk.type = 'risk_factor'
+          AND r.type IN ['causes', 'increases_risk', 'associated with']
+        RETURN risk.name AS risk_factor,
+               r.type AS relation,
+               outcome.name AS outcome,
+               r.origin AS evidence_origin,
+               r.score AS similarity_score
+        ORDER BY r.score DESC NULLS LAST
+        LIMIT 20
+        """
+        return self._run_query(query, {'outcome': outcome})
+
+    def get_perfusion_related_knowledge(self) -> Dict[str, List[Dict]]:
+        """获取灌注相关的知识"""
+        results = {}
+
+        # 灌注相关并发症
+        query_complications = """
+        MATCH (n:Entity)
+        WHERE n.type = 'complication'
+          AND (toLower(n.name) CONTAINS 'perfusion'
+               OR toLower(n.name) CONTAINS 'ischemia'
+               OR toLower(n.name) CONTAINS 'reperfusion'
+               OR toLower(n.name) CONTAINS 'graft')
+        RETURN n.name AS name, n.type AS type
+        LIMIT 30
+        """
+        results['perfusion_complications'] = self._run_query(query_complications)
+
+        # 灌注相关监测指标
+        query_indicators = """
+        MATCH (n:Entity)
+        WHERE n.type = 'monitoring_indicator'
+          AND (toLower(n.name) CONTAINS 'cardiac'
+               OR toLower(n.name) CONTAINS 'lactate'
+               OR toLower(n.name) CONTAINS 'pressure'
+               OR toLower(n.name) CONTAINS 'flow'
+               OR toLower(n.name) CONTAINS 'oxygen')
+        RETURN n.name AS name, n.type AS type
+        LIMIT 30
+        """
+        results['perfusion_indicators'] = self._run_query(query_indicators)
+
+        # 相关治疗方案
+        query_treatments = """
+        MATCH (n:Entity)
+        WHERE n.type IN ['treatment_regimen', 'medication']
+          AND (toLower(n.name) CONTAINS 'vasopressor'
+               OR toLower(n.name) CONTAINS 'inotrope'
+               OR toLower(n.name) CONTAINS 'ecmo'
+               OR toLower(n.name) CONTAINS 'perfusion')
+        RETURN n.name AS name, n.type AS type
+        LIMIT 30
+        """
+        results['perfusion_treatments'] = self._run_query(query_treatments)
+
+        return results
+
+    def query_decision_support(self, abnormality: str, indicator: str = None) -> Dict[str, Any]:
+        """
+        综合决策支持查询
+
+        Args:
+            abnormality: 异常状态描述 (如 "low MAP", "high lactate")
+            indicator: 具体指标名称
+
+        Returns:
+            包含原因、后果、治疗建议的字典
+        """
+        result = {
+            'abnormality': abnormality,
+            'causes': [],
+            'consequences': [],
+            'treatments': [],
+            'related_risks': []
+        }
+
+        # 查找原因
+        causes_query = """
+        MATCH (cause:Entity)-[r:RELATION]->(abnormal:Entity)
+        WHERE toLower(abnormal.name) CONTAINS toLower($abnormality)
+          AND r.type IN ['causes', 'leads_to', 'results_in']
+        RETURN cause.name AS cause, cause.type AS type, r.type AS relation
+        LIMIT 15
+        """
+        result['causes'] = self._run_query(causes_query, {'abnormality': abnormality})
+
+        # 查找后果
+        consequences_query = """
+        MATCH (abnormal:Entity)-[r:RELATION]->(consequence:Entity)
+        WHERE toLower(abnormal.name) CONTAINS toLower($abnormality)
+          AND r.type IN ['causes', 'increases_risk', 'leads_to']
+        RETURN consequence.name AS consequence, consequence.type AS type, r.type AS relation
+        LIMIT 15
+        """
+        result['consequences'] = self._run_query(consequences_query, {'abnormality': abnormality})
+
+        # 查找治疗
+        treatments_query = """
+        MATCH (treatment:Entity)-[r:RELATION]->(abnormal:Entity)
+        WHERE toLower(abnormal.name) CONTAINS toLower($abnormality)
+          AND treatment.type IN ['treatment_regimen', 'medication', 'surgical_procedure', 'medical_device']
+          AND r.type IN ['treats', 'alleviates', 'prevents', 'indicated_for', 'reduces_risk']
+        RETURN treatment.name AS treatment, treatment.type AS type, r.type AS relation
+        LIMIT 15
+        """
+        result['treatments'] = self._run_query(treatments_query, {'abnormality': abnormality})
+
+        return result
 
     def get_clinical_properties(self, entity_name: str) -> Dict:
         """获取实体的临床属性"""
         query = """
         MATCH (n:Entity)
         WHERE toLower(n.name) CONTAINS toLower($name)
-        RETURN properties(n) AS props
-        LIMIT 1
+        RETURN properties(n) AS props, n.name AS name, n.type AS type
+        LIMIT 5
         """
         results = self._run_query(query, {'name': entity_name})
-        if results:
-            return results[0]['props']
-        return {}
+        return results if results else []
 
 
 def explore_database():
@@ -224,5 +356,47 @@ def explore_database():
     kg.close()
 
 
+def test_perfusion_queries():
+    """测试灌注相关查询"""
+    kg = Neo4jKnowledgeGraph()
+
+    print("="*60)
+    print("Perfusion Decision Support Queries")
+    print("="*60)
+
+    # 1. 灌注相关知识
+    print("\n### Perfusion Related Knowledge ###")
+    perfusion_knowledge = kg.get_perfusion_related_knowledge()
+    for category, items in perfusion_knowledge.items():
+        print(f"\n{category}:")
+        for item in items[:10]:
+            print(f"  - {item['name']}")
+
+    # 2. 缺血再灌注损伤的后果
+    print("\n### Ischemia-Reperfusion Injury Consequences ###")
+    consequences = kg.find_indicator_abnormality_consequences("ischemia-reperfusion")
+    for c in consequences[:10]:
+        print(f"  {c['indicator']} --{c['relation']}--> {c['consequence']} ({c['consequence_type']})")
+
+    # 3. 综合决策支持
+    print("\n### Decision Support: Primary Graft Dysfunction ###")
+    decision = kg.query_decision_support("primary graft dysfunction")
+    print(f"  Causes: {[c['cause'] for c in decision['causes'][:5]]}")
+    print(f"  Consequences: {[c['consequence'] for c in decision['consequences'][:5]]}")
+    print(f"  Treatments: {[t['treatment'] for t in decision['treatments'][:5]]}")
+
+    # 4. 低心输出量的治疗
+    print("\n### Treatments for Low Cardiac Output ###")
+    treatments = kg.find_treatment_for_complication("low cardiac output")
+    for t in treatments[:10]:
+        print(f"  [{t['treatment_type']}] {t['treatment']} --{t['relation_type']}--> {t['complication']}")
+
+    kg.close()
+
+
 if __name__ == "__main__":
-    explore_database()
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "perfusion":
+        test_perfusion_queries()
+    else:
+        explore_database()
