@@ -1,0 +1,404 @@
+a.name,a.type,properties(r),b.name,b.type
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",chronic kidney disease,recipient_characteristic
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: complication
+}",heart transplantation,surgical_procedure
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: limits
+}",heart transplantation,surgical_procedure
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: precedes
+}",heart transplantation,surgical_procedure
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: part_of
+}",heart transplantation,surgical_procedure
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: complication_of
+}",heart transplantation,surgical_procedure
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: increases_risk
+}",heart transplantation,surgical_procedure
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: part_of
+}",cardiac output recovery,monitoring_indicator
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",cardiac output recovery,monitoring_indicator
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: monitors
+}",cardiac output recovery,monitoring_indicator
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: increases_risk
+}",lung transplantation,surgical_procedure
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: part_of
+}",lung transplantation,surgical_procedure
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: complication_of
+}",lung transplantation,surgical_procedure
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: increases_risk
+}",cardiac function,recipient_characteristic
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",cardiac function,recipient_characteristic
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: increases_risk
+}",mortality,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: associated with
+}",mortality,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",mortality,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",delayed graft function,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: increases_risk
+}",delayed graft function,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",biopsy-proven acute rejections,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: increases_risk
+}",death with functioning graft,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",death with functioning graft,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: part_of
+}",death with functioning graft,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: part_of
+}",babies,recipient_characteristic
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: associated with
+}",babies,recipient_characteristic
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: increases_risk
+}",acute myocardial infarction,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",acute myocardial infarction,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: part_of
+}",acute myocardial infarction,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: complication
+}",acute myocardial infarction,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: part_of
+}",juvenile rats,recipient_characteristic
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: increases_risk
+}",death,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",death,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",cardiogenic shock,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",heart failure,recipient_characteristic
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: increases_risk
+}",heart failure,recipient_characteristic
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: complication
+}",heart failure,recipient_characteristic
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: prerequisite_of
+}",heart failure,recipient_characteristic
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: increases_risk
+}",myocardial infarction,risk_factor
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",myocardial infarction,risk_factor
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: part_of
+}",myocardial infarction,risk_factor
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: aggravates
+}",myocardial infarction,risk_factor
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: occurs_in
+}",myocardial infarction,risk_factor
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: increases_risk
+}",rejection,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: increases_risk
+}",congenital heart disease,recipient_characteristic
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: part_of
+}",congenital heart disease,recipient_characteristic
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: compromises
+}",congenital heart disease,recipient_characteristic
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",allograft rejection,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: precedes
+}",allograft rejection,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: increases_risk
+}",allograft rejection,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: part_of
+}",cardiac allograft vasculopathy (CAV),complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: increases_risk
+}",cardiac allograft vasculopathy (CAV),complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",reperfusion injury,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  score: 0.8919655680656433,
+  origin: inferred,
+  type: SIMILAR_TO
+}",reperfusion injury,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: increases_risk
+}",reperfusion injury,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",acute myocardial infarction (AMI),complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: part_of
+}",acute myocardial infarction (AMI),complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",necroptosis,diagnostic_criteria
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: increases_risk
+}",necroptosis,diagnostic_criteria
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: part_of
+}",necroptosis,diagnostic_criteria
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: increases_risk
+}",necrosis,diagnostic_criteria
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",necrosis,diagnostic_criteria
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: part_of
+}",necrosis,diagnostic_criteria
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: complication_of
+}",reperfusion,treatment_regimen
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: complication
+}",reperfusion,treatment_regimen
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: part_of
+}",reperfusion,treatment_regimen
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",damage-associated molecular patterns,monitoring_indicator
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",inflammatory response,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: increases_risk
+}",inflammatory response,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: involves
+}",inflammatory response,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: part_of
+}",inflammatory response,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",lethal reperfusion injury,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: precedes
+}",mitochondria,recipient_characteristic
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: affects
+}",survival,monitoring_indicator
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",hypoxia/reoxygenation,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: increases_risk
+}",oxidative stress,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",oxidative stress,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: part_of
+}",oxidative stress,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: precedes
+}",oxidative stress,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: involves
+}",oxidative stress,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: increases_risk
+}",apoptosis,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",apoptosis,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: part_of
+}",apoptosis,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: part_of
+}",cardiovascular diseases,risk_factor
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: increases_risk
+}",cardiovascular diseases,risk_factor
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",reperfusion ventricular tachycardia,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  score: 0.800508439540863,
+  origin: inferred,
+  type: SIMILAR_TO
+}",reperfusion ventricular tachycardia,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",cardiac arrest,risk_factor
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",mitochondria permeability transition pore opening,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: part_of
+}",improved neurological outcome,monitoring_indicator
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",sudden cardiac death,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: increases_risk
+}",sudden cardiac death,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",elevated inflammatory markers,monitoring_indicator
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: increases_risk
+}",elevated inflammatory markers,monitoring_indicator
+ischemia-reperfusion injury (IRI),complication,"{
+  score: 0.8494502305984497,
+  origin: inferred,
+  type: SIMILAR_TO
+}",ischemic liver injury,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: increases_risk
+}",ferroptosis,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",ferroptosis,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: precedes
+}",ferroptosis,complication
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: causes
+}",cell death,donor_characteristic
+ischemia-reperfusion injury (IRI),complication,"{
+  origin: base,
+  type: involves
+}",cell death,donor_characteristic

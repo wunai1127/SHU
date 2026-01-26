@@ -1,0 +1,186 @@
+[
+  {
+    "type": "entity",
+    "count": 15591
+  },
+  {
+    "type": "monitoring_indicator",
+    "count": 11715
+  },
+  {
+    "type": "complication",
+    "count": 5906
+  },
+  {
+    "type": "recipient_characteristic",
+    "count": 4718
+  },
+  {
+    "type": "treatment_regimen",
+    "count": 4441
+  },
+  {
+    "type": "surgical_procedure",
+    "count": 3715
+  },
+  {
+    "type": "medical_device",
+    "count": 3602
+  },
+  {
+    "type": "risk_factor",
+    "count": 3442
+  },
+  {
+    "type": "medication",
+    "count": 3060
+  },
+  {
+    "type": "diagnostic_criteria",
+    "count": 2886
+  },
+  {
+    "type": "donor_characteristic",
+    "count": 1886
+  },
+  {
+    "type": "contraindication",
+    "count": 349
+  },
+  {
+    "type": "state_variable",
+    "count": 56
+  },
+  {
+    "type": "evidence_strength",
+    "count": 31
+  },
+  {
+    "type": "anatomical_structure",
+    "count": 28
+  },
+  {
+    "type": "prerequisite_of",
+    "count": 18
+  },
+  {
+    "type": "indication",
+    "count": 8
+  },
+  {
+    "type": "part_of",
+    "count": 8
+  },
+  {
+    "type": "statistical_data",
+    "count": 6
+  },
+  {
+    "type": "etiology",
+    "count": 6
+  },
+  {
+    "type": "alleviates",
+    "count": 4
+  },
+  {
+    "type": "affiliation",
+    "count": 4
+  },
+  {
+    "type": "death_cause",
+    "count": 4
+  },
+  {
+    "type": "symptom",
+    "count": 3
+  },
+  {
+    "type": "exclusion_criteria",
+    "count": 3
+  },
+  {
+    "type": "physiological_state",
+    "count": 3
+  },
+  {
+    "type": "non-HLA antigens",
+    "count": 3
+  },
+  {
+    "type": "time_period",
+    "count": 3
+  },
+  {
+    "type": "biological_function",
+    "count": 2
+  },
+  {
+    "type": "research_model",
+    "count": 2
+  },
+  {
+    "type": "cause_of_death",
+    "count": 2
+  },
+  {
+    "type": "comorbidity",
+    "count": 2
+  },
+  {
+    "type": "pathophysiology",
+    "count": 2
+  },
+  {
+    "type": "relation",
+    "count": 2
+  },
+  {
+    "type": "antibody",
+    "count": 2
+  },
+  {
+    "type": "preservation_solution",
+    "count": 2
+  },
+  {
+    "type": "outcome",
+    "count": 2
+  },
+  {
+    "type": "medical_specialty",
+    "count": 2
+  },
+  {
+    "type": "training_program",
+    "count": 2
+  },
+  {
+    "type": "statistical_method",
+    "count": 2
+  },
+  {
+    "type": "monitors",
+    "count": 1
+  },
+  {
+    "type": "immunosuppression",
+    "count": 1
+  },
+  {
+    "type": "organization",
+    "count": 1
+  },
+  {
+    "type": "perfusion_medium",
+    "count": 1
+  },
+  {
+    "type": "pathophysiological_mechanism",
+    "count": 1
+  },
+  {
+    "type": "biomarker",
+    "count": 1
+  }
+]
