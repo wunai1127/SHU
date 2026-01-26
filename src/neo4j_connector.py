@@ -3,6 +3,7 @@
 Neo4j知识图谱连接器 - 用于查询生理学决策证据
 """
 
+import os
 from neo4j import GraphDatabase
 from typing import Dict, List, Any, Optional
 import logging
@@ -10,26 +11,41 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# 默认配置 - 可通过环境变量覆盖
+DEFAULT_CONFIG = {
+    'uri': os.getenv('NEO4J_URI', 'bolt://localhost:7687'),
+    'user': os.getenv('NEO4J_USER', 'neo4j'),
+    'password': os.getenv('NEO4J_PASSWORD', ''),  # 需要用户提供
+    'database': os.getenv('NEO4J_DATABASE', 'backup'),
+}
+
 
 class Neo4jKnowledgeGraph:
     """Neo4j知识图谱接口"""
 
-    def __init__(self, uri: str = "bolt://localhost:7687",
-                 user: str = "neo4j",
-                 password: str = "qaz709394",
-                 database: str = "backup"):
+    def __init__(self, uri: str = None,
+                 user: str = None,
+                 password: str = None,
+                 database: str = None):
         """
         初始化连接
 
         Args:
-            uri: Neo4j Bolt URI
-            user: 用户名
-            password: 密码
-            database: 数据库名
+            uri: Neo4j Bolt URI (默认从环境变量NEO4J_URI读取)
+            user: 用户名 (默认从环境变量NEO4J_USER读取)
+            password: 密码 (默认从环境变量NEO4J_PASSWORD读取)
+            database: 数据库名 (默认从环境变量NEO4J_DATABASE读取)
         """
-        self.driver = GraphDatabase.driver(uri, auth=(user, password))
-        self.database = database
-        logger.info(f"Connected to Neo4j at {uri}, database: {database}")
+        self.uri = uri or DEFAULT_CONFIG['uri']
+        self.user = user or DEFAULT_CONFIG['user']
+        self.password = password or DEFAULT_CONFIG['password']
+        self.database = database or DEFAULT_CONFIG['database']
+
+        if not self.password:
+            raise ValueError("密码未提供。请设置环境变量 NEO4J_PASSWORD 或传入 password 参数")
+
+        self.driver = GraphDatabase.driver(self.uri, auth=(self.user, self.password))
+        logger.info(f"Connected to Neo4j at {self.uri}, database: {self.database}")
 
     def close(self):
         """关闭连接"""
