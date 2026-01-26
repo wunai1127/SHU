@@ -1,0 +1,18 @@
+# HTTG Perfusion Monitoring System Requirements
+
+# Core dependencies
+pyyaml>=6.0
+pandas>=1.5.0
+openpyxl>=3.0.0
+numpy>=1.21.0
+
+# Neo4j integration (optional)
+neo4j>=5.0.0
+
+# LLM integration (optional)
+openai>=1.0.0
+anthropic>=0.18.0
+
+# Visualization (optional)
+matplotlib>=3.5.0
+seaborn>=0.12.0

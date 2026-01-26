@@ -1,146 +1,100 @@
-# 心脏移植阈值管理系统
+# HTTG Perfusion Monitoring System
 
-Heart Transplant Threshold Management System
+心脏移植灌注监测系统 - 证据驱动的策略推荐引擎
 
-## 概述
+## 功能
 
-本系统提供心脏移植/机械灌注场景下的**特征阈值 + baseline + 策略**管理框架，支持：
+1. **Baseline阈值检测** - 检测指标异常并分级
+2. **证据驱动策略推荐** - 基于知识图谱和临床指南的干预建议
+3. **LLM增强推理** - 可选的大语言模型增强推理
+4. **Robustness检查** - 一致性和药物交互检查
 
-- 阈值评估与分级（高/中/低信度）
-- t=0 Baseline 对比分析
-- 临床决策策略映射
-- Pending 指标监测
-
-## 目录结构
-
-```
-SHU/
-├── config/                          # 配置文件
-│   ├── thresholds.yaml              # 已确认阈值配置（含source/confidence）
-│   ├── pending_indicators.yaml      # 待定指标配置（仅监测）
-│   ├── baseline.yaml                # t=0 baseline配置
-│   └── strategies.yaml              # 策略映射配置
-├── knowledge_base/                  # 知识库文档
-│   ├── confirmed_thresholds.md      # 已确认阈值汇总
-│   ├── pending_indicators.md        # 待定指标汇总
-│   └── sources.md                   # 数据来源说明
-├── src/                             # Python模块
-│   ├── __init__.py
-│   ├── threshold_manager.py         # 阈值管理器
-│   ├── baseline_evaluator.py        # Baseline评估器
-│   └── strategy_mapper.py           # 策略映射器
-└── README.md
-```
-
-## 快速使用
-
-### 1. 评估单个指标
-
-```python
-from src.threshold_manager import ThresholdManager
-
-manager = ThresholdManager()
-result = manager.evaluate("EF", 48)
-
-print(f"结果: {result.result.value}")  # gray_zone
-print(f"置信度: {result.confidence.value}")  # high
-print(f"建议: {result.action}")  # 综合评估
-```
-
-### 2. Baseline 对比
-
-```python
-from src.baseline_evaluator import BaselineEvaluator
-
-evaluator = BaselineEvaluator()
-comparison = evaluator.compare("Lactate", 3.5)
-
-print(f"当前: {comparison.current_value}")
-print(f"基线: {comparison.baseline_value}")
-print(f"变化: {comparison.delta} ({comparison.delta_percent}%)")
-print(f"趋势: {comparison.trend.value}")
-```
-
-### 3. 生成临床决策报告
-
-```python
-from src.strategy_mapper import StrategyMapper
-
-mapper = StrategyMapper()
-
-measurements = {
-    "EF": 48,
-    "CI": 1.9,
-    "MAP": 58,
-    "SvO2": 52,
-    "Lactate": 4.5,
-    "Emax": 120,  # pending指标
-}
-
-report = mapper.generate_decision_report(measurements)
-print(report)
-```
-
-## 指标分类
-
-### 已确认阈值（可用作通用 baseline）
-
-| 指标 | 置信度 | 目标/接受 | 红线/拒绝 |
-|------|--------|-----------|-----------|
-| EF | 高 | >50% | <40% |
-| CI | 中 | 2.2-2.8 | <2.0 |
-| MAP | 中 | 65-80 | <60 |
-| AOP | 高 | 40-100 (OCS) | <70 警告 |
-| SvO₂ | 中 | ≥65% | <60%, <50%危急 |
-| Lactate | 高 | <2理想, <5接受 | >5不合格 |
-| HR | 高 | 60-100 | 110-120警戒 |
-| PVR | 高 | <2.5 | >3.0 |
-| CF | 高 | 400-900 (OCS) | - |
-
-### 待定指标（Pending，仅监测）
-
-- **心肌力学**: Emax, Max dP/dt, Tau, End systolic pressure, Potential energy, Contraction time, Developed pressure
-- **代谢/电解质**: GluA, GluV, Na⁺A, K⁺A, LacA, CvO₂
-- **血气**: pO₂V (低信度占位)
-
-## 策略映射
-
-```
-红线触发 → 立即干预，升级支持
-警戒/灰区 → 微调方案，加强监测
-正常范围 → 维持当前方案
-Pending → 仅监测记录，不做决策
-```
-
-### 升级策略示例
-
-```
-SvO₂ < 50% 或 CI下降 且 复苏无效
-    → 正性肌力药物/肺血管扩张 ± MCS
-```
-
-## 数据来源
-
-| 来源 | 状态 | 覆盖指标 |
-|------|------|----------|
-| Prot_000 OCS Protocol | ✅ 已获取 | AOP, CF |
-| 临床共识/标准 | ✅ 已采用 | EF, CI, MAP, SvO₂, Lactate, HR, PVR |
-| ISHLT 2022 Guidelines | ❌ 待获取 | 全面覆盖 |
-| PROCEED II Trial | ❌ 待获取 | 器官灌注参数 |
-| RCVSIM Model | ⚠️ 仅参考 | 心肌力学参数（非临床红线）|
-
-## 待办事项
-
-- [ ] 获取 ISHLT 2022 指南完整版
-- [ ] 获取 PROCEED II、FDA SSED 等文献
-- [ ] 为 pending 指标补齐阈值（文献验证或数据驱动）
-- [ ] 建立定期复核机制
-
-## 依赖
-
-- Python 3.8+
-- PyYAML
+## 快速开始
 
 ```bash
-pip install pyyaml
+# 安装依赖
+pip install -r requirements.txt
+
+# 运行基础测试（无需Neo4j）
+python test_evidence_strategy.py
+
+# 运行完整策略测试
+python test_full_strategy.py
+
+# 运行Baseline策略推荐测试
+python src/baseline_strategy_recommender.py
 ```
+
+## Neo4j集成（可选）
+
+```python
+from src.neo4j_connector import Neo4jKnowledgeGraph
+from src.baseline_strategy_recommender import BaselineStrategyRecommender
+
+# 连接Neo4j
+neo4j = Neo4jKnowledgeGraph(
+    uri="bolt://localhost:7687",
+    user="neo4j",
+    password="your_password",
+    database="backup"
+)
+
+# 创建推荐器并设置Neo4j
+recommender = BaselineStrategyRecommender()
+recommender.set_neo4j(neo4j)
+
+# 分析数据
+measurements = {'MAP': 45, 'Lactate': 4.5, 'K_A': 6.2}
+report = recommender.analyze_baseline(measurements, sample_id="TEST-001")
+print(recommender.format_report(report))
+```
+
+## LLM集成（可选）
+
+```python
+from src.baseline_strategy_recommender import BaselineStrategyRecommender, OpenAILLM
+
+# 使用OpenAI
+llm = OpenAILLM(api_key="your_api_key", model="gpt-4")
+recommender = BaselineStrategyRecommender(llm=llm)
+
+# 或使用Anthropic Claude
+from src.baseline_strategy_recommender import AnthropicLLM
+llm = AnthropicLLM(api_key="your_api_key")
+recommender.set_llm(llm)
+```
+
+## 文件结构
+
+```
+├── src/
+│   ├── baseline_strategy_recommender.py  # 主推荐器
+│   ├── baseline_thresholds.py            # 阈值管理
+│   ├── evidence_strategy_engine.py       # 证据驱动引擎
+│   ├── neo4j_connector.py                # Neo4j连接器
+│   ├── perfusion_monitor.py              # 灌注监测器
+│   └── ...
+├── config/
+│   ├── thresholds.yaml                   # 阈值配置
+│   ├── intervention_strategies.yaml      # 干预策略
+│   ├── baseline.yaml                     # Baseline配置
+│   └── strategies.yaml                   # 策略映射
+├── test_*.py                             # 测试脚本
+└── requirements.txt
+```
+
+## 支持的指标
+
+| 指标 | 单位 | 目标范围 | 干预策略 |
+|------|------|----------|----------|
+| MAP | mmHg | 65-80 | 血管活性药物支持 |
+| CI | L/min/m² | 2.2-2.8 | 正性肌力药物 |
+| Lactate | mmol/L | <4 | 优化灌注 |
+| K_A | mmol/L | 4.0-5.0 | 补钾/降钾 |
+| SvO2 | % | 65-80 | 氧供需平衡 |
+| pH | - | 7.35-7.45 | 酸碱纠正 |
+| ... | ... | ... | ... |
+
+## 版本
+
+- v2.0.0 - 完整的证据驱动策略推荐系统
