@@ -34,4 +34,8 @@ env/
 # OS
 .DS_Store
 Thumbs.db
-*.zip
+# 忽略其他zip，但保留httg打包文件
+dnner-main.zip
+graph-rag-agent-master.zip
+heart_tx_all_merged_v8.json.zip
+完整 txt.zip
