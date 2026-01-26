@@ -44,14 +44,16 @@ class Neo4jKnowledgeGraph:
         if not self.password:
             raise ValueError("密码未提供。请设置环境变量 NEO4J_PASSWORD 或传入 password 参数")
 
-        # 验证连接
+        # 先创建driver
+        self.driver = GraphDatabase.driver(self.uri, auth=(self.user, self.password))
+
+        # 再验证连接
         try:
             self.driver.verify_connectivity()
+            logger.info(f"Connected to Neo4j at {self.uri}, database: {self.database}")
         except Exception as e:
+            self.driver.close()
             raise ConnectionError(f"无法连接Neo4j: {e}")
-
-        self.driver = GraphDatabase.driver(self.uri, auth=(self.user, self.password))
-        logger.info(f"Connected to Neo4j at {self.uri}, database: {self.database}")
 
     def close(self):
         """关闭连接"""
