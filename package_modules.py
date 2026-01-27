@@ -33,11 +33,18 @@ INCLUDE_PATTERNS = {
         'intervention_strategies.yaml',
         'strategies.yaml',
     ],
+    # 前端页面
+    'pages/': [
+        '1_📊_数据管理.py',
+        '2_⚙️_后端配置.py',
+        '3_📈_批量分析.py',
+    ],
     # 测试脚本
     '': [
         'test_perfusion_monitor.py',
         'test_full_strategy.py',
         'test_evidence_strategy.py',
+        'app.py',  # Streamlit主应用
     ],
 }
 
