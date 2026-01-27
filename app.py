@@ -30,8 +30,8 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 # 导入后端模块
 try:
-    from baseline_thresholds import BaselineThresholdChecker, load_sample_data
-    from evidence_strategy_engine import EvidenceStrategyEngine, AnomalyLevel
+    from baseline_thresholds import BaselineThresholds
+    from evidence_strategy_engine import EvidenceStrategyEngine
     from baseline_strategy_recommender import BaselineStrategyRecommender
     BACKEND_AVAILABLE = True
 except ImportError as e:
