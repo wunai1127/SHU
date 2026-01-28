@@ -1,0 +1,312 @@
+# =============================================================================
+# 指标分类配置 - 基于灌注过程可调控性
+# =============================================================================
+#
+# 分类逻辑：
+# - SETPOINT: 可直接调控，通过设备/药物设定目标值
+# - READOUT: 不可直接设定，但可通过调整Setpoints间接影响
+# - INJURY_MARKER: 不可设定，只能监测，反映损伤程度
+#
+# 这个分类决定了：
+# 1. 前端显示：Setpoints显示"目标值"，Readouts显示"风险阈值"
+# 2. 策略推荐：Setpoints推荐具体设定值，Readouts推荐调整哪些Setpoints
+# 3. 警报逻辑：Setpoints偏离目标报警，Readouts超过风险阈值报警
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 可直接调控的指标 (Setpoints) - 通过设备/药物直接设定
+# -----------------------------------------------------------------------------
+setpoints:
+
+  # === 气体交换设定 ===
+  pH:
+    name: "动脉pH"
+    domain: "气体交换"
+    unit: ""
+    target_range: [7.25, 7.35]
+    control_method: "氧合器氧气/扫气流量titration"
+    device: "氧合器"
+    adjustment_direction: "扫气流量↑ → CO2排出↑ → pH↑"
+    monitoring_frequency: "每15分钟"
+
+  PaO2:
+    name: "动脉氧分压"
+    domain: "气体交换"
+    unit: "mmHg"
+    target_range: [100, 200]
+    control_method: "氧合器氧气/扫气流量titration"
+    device: "氧合器"
+    adjustment_direction: "FiO2↑ → PaO2↑"
+    monitoring_frequency: "每15分钟"
+
+  # === 压力/负荷设定 ===
+  AoDP:
+    name: "主动脉舒张压"
+    domain: "灌注压力"
+    unit: "mmHg"
+    target_range: [35, 45]
+    typical_setpoint: 40
+    control_method: "离心泵转速/反馈控制"
+    device: "离心泵"
+    adjustment_direction: "泵速↑ → AoDP↑"
+    monitoring_frequency: "持续"
+
+  LAP:
+    name: "左房压"
+    domain: "负荷/工作模式"
+    unit: "mmHg"
+    target_range: [-1, 8]
+    working_mode_threshold: 8
+    control_method: "LA线泵速调节"
+    device: "LA线泵"
+    adjustment_direction: "LA泵速↑ → LAP↑ → 进入Working Mode"
+    monitoring_frequency: "持续"
+    notes: "Langendorff(-1) → Working Mode(8)"
+
+  # === 温度策略 ===
+  Temperature:
+    name: "灌注温度"
+    domain: "温度策略"
+    unit: "°C"
+    initial_target: 22
+    final_target: 37
+    rewarming_protocol: "22°C起始 → 37°C/30min"
+    control_method: "热交换器"
+    device: "热交换器"
+    adjustment_direction: "热交换器温度↑ → 灌注液温度↑"
+    monitoring_frequency: "每5分钟"
+    caution: "升温过快可致微循环损伤"
+
+  # === 节律/刺激 ===
+  PacingRate:
+    name: "起搏心率"
+    domain: "节律控制"
+    unit: "bpm"
+    target_range: [100, 110]
+    typical_setpoint: 105
+    control_method: "起搏器设定"
+    device: "起搏器"
+    pacing_mode: "AAI"
+    monitoring_frequency: "持续"
+
+  # === 药物支持 ===
+  Dobutamine:
+    name: "多巴酚丁胺"
+    domain: "正性肌力支持"
+    unit: "μg/min"
+    target_range: [2, 6]
+    typical_setpoint: 4
+    control_method: "持续静脉输注"
+    effects: ["dP/dt↑", "EF↑", "SW↑"]
+    monitoring_frequency: "持续输注速率"
+
+  Insulin:
+    name: "胰岛素"
+    domain: "代谢支持"
+    unit: "U/h"
+    target_range: [1.5, 3.0]
+    typical_setpoint: 2.25
+    control_method: "持续静脉输注"
+    effects: ["血糖控制", "改善底物利用"]
+    monitoring_frequency: "每30分钟查血糖"
+
+  # === 灌注液组成 ===
+  Hemoglobin:
+    name: "血红蛋白"
+    domain: "灌注液组成"
+    unit: "g/L"
+    target_range: [40, 50]
+    typical_setpoint: 45
+    control_method: "RBC添加/稀释"
+    effects: ["影响CaO2", "影响MVO2计算"]
+    monitoring_frequency: "每30分钟"
+
+
+# -----------------------------------------------------------------------------
+# 不可直接调控但可间接影响的指标 (Readouts) - 反映心脏功能状态
+# -----------------------------------------------------------------------------
+readouts:
+
+  # === 功能学读数 (Viability Readouts) ===
+  Tau:
+    name: "时间常数Tau"
+    domain: "舒张功能"
+    unit: "ms"
+    risk_threshold: 44
+    risk_direction: "higher_is_worse"  # >44 提示低功能风险
+    influenced_by: ["Temperature", "LAP", "PacingRate", "Dobutamine"]
+    interpretation: ">44ms 提示舒张功能障碍"
+
+  EF:
+    name: "射血分数"
+    domain: "收缩功能"
+    unit: "%"
+    risk_threshold: 18
+    risk_direction: "lower_is_worse"  # <18% 提示低功能
+    influenced_by: ["LAP", "AoDP", "PacingRate", "Dobutamine"]
+    interpretation: "<18% 提示严重收缩功能障碍"
+
+  SW:
+    name: "每搏功"
+    domain: "综合功能"
+    unit: "mmHg·mL"
+    risk_threshold: 1309
+    risk_direction: "lower_is_worse"
+    influenced_by: ["LAP", "AoDP", "Dobutamine", "Temperature"]
+    interpretation: "<1309 提示心脏做功不足"
+
+  dPdt_min:
+    name: "最小dP/dt"
+    domain: "舒张功能"
+    unit: "mmHg/s"
+    risk_threshold: -1377
+    risk_direction: "higher_is_worse"  # >-1377 (即绝对值小) 提示舒张差
+    influenced_by: ["PacingRate", "Temperature", "LAP", "Dobutamine"]
+    interpretation: ">-1377 提示舒张回落速度减慢"
+
+  dPdt_max:
+    name: "最大dP/dt"
+    domain: "收缩功能"
+    unit: "mmHg/s"
+    risk_threshold: 1562
+    risk_direction: "lower_is_worse"
+    influenced_by: ["Dobutamine", "AoDP", "PacingRate"]
+    interpretation: "<1562 提示收缩力不足"
+
+  DevP:
+    name: "发展压"
+    domain: "收缩功能"
+    unit: "mmHg"
+    risk_threshold: 153
+    risk_direction: "lower_is_worse"
+    influenced_by: ["AoDP", "Dobutamine"]
+    interpretation: "<153 提示压力发展不足"
+
+  # === 冠脉/代谢读数 ===
+  CVR:
+    name: "冠脉血管阻力"
+    domain: "冠脉微循环"
+    unit: "mmHg·min·mL⁻¹·100g⁻¹"
+    risk_threshold: 0.040
+    risk_direction: "higher_is_worse"
+    influenced_by: ["Temperature", "AoDP", "Hemoglobin"]
+    interpretation: ">0.040 提示冠脉微循环阻力增高"
+    notes: "深低温可导致CVR显著升高"
+
+  MVO2:
+    name: "心肌氧耗"
+    domain: "氧代谢"
+    unit: "mL O₂·min⁻¹·100g⁻¹"
+    risk_threshold: 8.8
+    risk_direction: "lower_is_worse"
+    influenced_by: ["CBF", "Hemoglobin", "LAP", "Dobutamine", "Temperature"]
+    interpretation: "<8.8 提示氧供需失衡"
+    calculation: "CBF × (CaO2 - CvO2)"
+
+  O2_extraction:
+    name: "氧摄取率"
+    domain: "氧代谢"
+    unit: "%"
+    risk_threshold: 17
+    risk_direction: "higher_is_worse"
+    influenced_by: ["Hemoglobin", "PaO2", "CBF", "Dobutamine"]
+    interpretation: ">17% 提示氧供不足或需求过高"
+
+  # === 乳酸相关 ===
+  Lactate_arterial:
+    name: "动脉乳酸"
+    domain: "代谢"
+    unit: "mmol/L"
+    risk_threshold: 1.55
+    risk_direction: "higher_is_worse"
+    influenced_by: ["PaO2", "Hemoglobin", "CBF", "Temperature"]
+    interpretation: ">1.55 提示组织缺氧或代谢紊乱"
+    sampling_site: "主动脉根部"
+
+  Lactate_VA_diff:
+    name: "静-动脉乳酸差"
+    domain: "代谢"
+    unit: "mmol/L"
+    risk_threshold: 5.75
+    risk_direction: "lower_is_worse"  # <5.75可能异常（需结合上下文）
+    influenced_by: ["CBF", "PaO2", "Hemoglobin"]
+    interpretation: "反映心肌乳酸代谢，由冠状窦与主动脉根部乳酸差获得"
+    calculation: "冠状窦乳酸 - 动脉乳酸"
+
+
+# -----------------------------------------------------------------------------
+# 不可设定的损伤标志物 (Injury Markers) - 只能监测
+# -----------------------------------------------------------------------------
+injury_markers:
+
+  TroponinI:
+    name: "肌钙蛋白I"
+    domain: "心肌损伤"
+    unit: "pg/mL/g"
+    risk_threshold: null  # 无统一阈值，趋势更重要
+    interpretation: "反映心肌细胞损伤程度"
+    notes: "深低温初始再灌注可导致troponin-I更高"
+    trend_is_key: true
+
+  Edema:
+    name: "心肌水肿"
+    domain: "组织损伤"
+    unit: "%重量增加"
+    risk_threshold: null
+    interpretation: "反映微血管完整性和灌注压管理"
+    influenced_by: ["AoDP", "灌注液渗透压", "微血管损伤"]
+    notes: "量化方法：灌注前后心脏重量差"
+
+
+# -----------------------------------------------------------------------------
+# 指标间的因果关系图 (用于策略推荐)
+# -----------------------------------------------------------------------------
+causal_relationships:
+
+  # Setpoint → Readout 的影响关系
+  - from: "Temperature"
+    to: "CVR"
+    effect: "深低温 → CVR↑"
+
+  - from: "Temperature"
+    to: "Tau"
+    effect: "温度↑ → 舒张改善 → Tau↓"
+
+  - from: "Dobutamine"
+    to: "dPdt_max"
+    effect: "Dobutamine↑ → 收缩力↑ → dPdt_max↑"
+
+  - from: "Dobutamine"
+    to: "EF"
+    effect: "Dobutamine↑ → EF↑"
+
+  - from: "LAP"
+    to: "SW"
+    effect: "LAP↑(适度) → 前负荷↑ → SW↑"
+
+  - from: "AoDP"
+    to: "DevP"
+    effect: "AoDP目标维持 → DevP稳定"
+
+  - from: "Hemoglobin"
+    to: "MVO2"
+    effect: "Hb↑ → CaO2↑ → MVO2↑"
+
+  - from: "PaO2"
+    to: "Lactate_arterial"
+    effect: "PaO2↑ → 氧供↑ → Lactate↓"
+
+
+# -----------------------------------------------------------------------------
+# 调控优先级 (当多个Readouts异常时的处理顺序)
+# -----------------------------------------------------------------------------
+intervention_priority:
+  1: "Temperature"      # 温度策略影响最广
+  2: "AoDP"            # 灌注压力基础
+  3: "Dobutamine"      # 正性肌力支持
+  4: "LAP"             # 前负荷调整
+  5: "PaO2"            # 氧供
+  6: "Hemoglobin"      # 携氧能力
+  7: "PacingRate"      # 心率
+  8: "pH"              # 酸碱平衡
+  9: "Insulin"         # 代谢支持

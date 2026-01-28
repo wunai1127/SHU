@@ -24,6 +24,7 @@ INCLUDE_PATTERNS = {
         'threshold_manager.py',
         'baseline_evaluator.py',
         'knowledge_graph.py',
+        'indicator_manager.py',
         '__init__.py',
     ],
     # 配置文件
@@ -32,6 +33,7 @@ INCLUDE_PATTERNS = {
         'baseline.yaml',
         'intervention_strategies.yaml',
         'strategies.yaml',
+        'indicator_classification.yaml',
     ],
     # 前端页面
     'pages/': [
@@ -39,6 +41,7 @@ INCLUDE_PATTERNS = {
         '2_⚙️_后端配置.py',
         '3_📈_批量分析.py',
         '4_🎙️_语音交互.py',
+        '5_🎛️_指标调控.py',
     ],
     # 测试脚本
     '': [
