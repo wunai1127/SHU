@@ -103,6 +103,21 @@ INDICATOR_TO_KG_MAPPING = {
     "Perfusion_Low": ["hypoperfusion", "ischemia", "organ dysfunction"],
     "Reperfusion_Injury": ["ischemia-reperfusion injury", "reperfusion injury", "IRI"],
     "Graft_Dysfunction": ["primary graft dysfunction", "graft failure", "PGD"],
+
+    # 移植共识新增 (Transplant Consensus)
+    "PVR_Contraindication": ["severe pulmonary hypertension", "transplant contraindication", "PVR>5Wood"],
+    "PVR_Critical": ["pulmonary hypertension", "right heart failure", "pulmonary vasodilator"],
+    "TPG_High": ["transpulmonary gradient", "pulmonary hypertension", "transplant contraindication"],
+    "PASP_High": ["pulmonary artery systolic pressure", "right ventricular failure", "RV dysfunction"],
+    "Creatinine_High": ["renal dysfunction", "CNI nephrotoxicity", "calcineurin inhibitor toxicity"],
+    "GFR_Low": ["chronic kidney disease", "renal impairment", "CNI nephrotoxicity"],
+    "Bilirubin_High": ["hepatic dysfunction", "liver failure", "cholestasis"],
+    "ColdIschemia_Long": ["cold ischemia time", "graft injury", "preservation injury"],
+    "LVEF_Low_Rejection": ["acute rejection", "graft dysfunction", "cardiac allograft rejection"],
+    "RV_Failure": ["right ventricular failure", "pulmonary hypertension", "RVAD"],
+    "Cardiac_Denervation": ["cardiac denervation", "chronotropic incompetence", "transplant heart"],
+    "Acute_Rejection": ["acute cellular rejection", "humoral rejection", "graft rejection"],
+    "CMV_Infection": ["CMV infection", "transplant vasculopathy", "graft vascular disease"],
 }
 
 
@@ -305,11 +320,12 @@ class BaselineThresholds:
     def _assess_trend(self, indicator: str, deviation: float) -> TrendDirection:
         """评估趋势方向"""
         # 需要增加为好的指标
-        increase_is_good = ['EF', 'CI', 'MAP', 'SvO2', 'CF', 'AOP']
+        increase_is_good = ['EF', 'CI', 'MAP', 'SvO2', 'CF', 'AOP', 'GFR', 'CrCl', 'PeakVO2']
         # 需要减少为好的指标
-        decrease_is_good = ['Lactate', 'PVR', 'chest_drainage']
+        decrease_is_good = ['Lactate', 'PVR', 'chest_drainage', 'TPG', 'PASP',
+                           'Creatinine', 'Bilirubin', 'ColdIschemiaTime']
         # 维持在目标范围内为好的指标
-        maintain_target = ['K_A', 'Na_A', 'GluA', 'HR']
+        maintain_target = ['K_A', 'Na_A', 'GluA', 'HR', 'MPA_Trough']
 
         baseline_config = self.get_baseline(indicator)
         acceptable_dev = 0

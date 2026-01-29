@@ -5,8 +5,9 @@
 # 策略状态: has_strategy(有策略), no_strategy(无策略), monitor_only(仅监测)
 # =============================================================================
 
-version: "2.0.0"
-last_updated: "2025-01-25"
+version: "3.0.0"
+last_updated: "2025-01-29"
+update_notes: "整合心脏移植共识文献：新增移植特异性药物策略、免疫抑制方案、右心衰处理流程、肺血管扩张方案"
 
 # =============================================================================
 # 权威来源引用
@@ -516,19 +517,44 @@ pulmonary_vascular:
       critical_pvr:
         condition: "PVR > 3.0 Wood Units"
         severity: critical
+        source: "中国心脏移植共识2019"
         strategies:
           immediate:
             - action: "iNO启动"
               dose: "20-40 ppm"
+              source: "共识：肺血管扩张方案"
+            - action: "米力农+NO联合治疗"
+              drug: "米力农"
+              dose: "0.3-1 μg/kg/min"
+              source: "心脏移植共识-肺血管扩张"
             - action: "静脉肺血管扩张剂"
-              drugs: ["米力农", "前列环素"]
+              drugs: ["前列腺素E1 静脉", "硝普钠 静脉", "硝酸甘油 静脉"]
           if_no_improvement:
             - action: "评估右心功能"
-            - action: "考虑右心辅助"
+            - action: "考虑右心辅助(RVAD)"
+            - action: "西地那非口服辅助"
+              source: "共识：肺血管扩张药物方案"
+        escalation_trigger: "30分钟无改善"
         kg_triples:
           - ["PVR_Critical", "requires_immediate", "iNO"]
+          - ["PVR_Critical", "combine_with", "Milrinone_0.3_1_ug"]
           - ["PVR_Critical", "assess", "Right_Heart_Function"]
           - ["PVR_Critical", "may_need", "RVAD"]
+
+      contraindication_pvr:
+        condition: "PVR > 5.0 Wood Units"
+        severity: critical
+        source: "中国心脏移植共识2019"
+        strategies:
+          immediate:
+            - action: "移植禁忌评估"
+              rationale: "PVR>5 Wood单位为心脏移植禁忌"
+            - action: "肺血管扩张剂反应性试验"
+              drugs: ["iNO", "前列环素"]
+              rationale: "若可降至<4 Wood，仍可考虑移植"
+        kg_triples:
+          - ["PVR_Contraindication", "indicates", "Transplant_Contraindication"]
+          - ["PVR_Contraindication", "test", "Vasodilator_Responsiveness"]
 
 # =============================================================================
 # 8. 冠脉灌注调控策略
@@ -746,6 +772,208 @@ postoperative:
           - ["High_Drainage", "check", "Coagulation"]
           - ["High_Drainage", "if_heparin", "Protamine"]
           - ["High_Drainage", "if_persistent", "Surgical_Exploration"]
+
+# =============================================================================
+# 11. 移植共识特异性干预策略 (Transplant Consensus)
+# =============================================================================
+transplant_consensus:
+
+  # 心脏去神经后心率管理
+  transplant_heart_rate:
+    indicator_name: "移植后心率管理"
+    has_strategy: true
+    source: "中国心脏移植共识2019 - 心脏外科学ch21"
+    abnormalities:
+      post_transplant_bradycardia:
+        condition: "去神经后心率不足"
+        severity: critical
+        strategies:
+          immediate:
+            - action: "异丙肾上腺素提高心率"
+              drug: "异丙肾上腺素 (Isoproterenol)"
+              dose: "0.01-0.1 μg/kg/min"
+              rationale: "心脏去神经后迷走神经功能丧失，需药物维持心率"
+              source: "共识：心脏去神经→心率降低→需异丙肾或起搏"
+            - action: "临时起搏"
+              method: "心房起搏 AAI模式"
+              target: "HR 90-110 bpm"
+          if_no_improvement:
+            - action: "正性肌力药物联合"
+              drugs: ["多巴酚丁胺 2-5天", "多巴胺（供者标准<20 μg/kg/min）"]
+        kg_triples:
+          - ["Cardiac_Denervation", "causes", "Heart_Rate_Decrease"]
+          - ["Heart_Rate_Decrease", "treat_with", "Isoproterenol"]
+          - ["Heart_Rate_Decrease", "treat_with", "Temporary_Pacing"]
+
+  # 右心衰处理流程
+  right_heart_failure:
+    indicator_name: "右心衰竭管理"
+    has_strategy: true
+    source: "中国心脏移植共识2019"
+    abnormalities:
+      acute_rvf:
+        condition: "急性右心衰竭"
+        severity: critical
+        strategies:
+          step1:
+            - action: "检查肺动脉吻合（排除转位/扭曲/气栓）"
+              rationale: "肺动脉干过长→扭曲→右室高压"
+              source: "共识：右心衰处理步骤1"
+          step2:
+            - action: "纠正缺氧、酸中毒"
+              target: "PaO2正常, pH>7.35"
+              source: "共识：右心衰处理步骤2"
+          step3:
+            - action: "PVR>2.5 Wood → 肺血管扩张药物治疗"
+              drugs: ["多巴胺", "多巴酚丁胺", "前列腺素E1", "硝酸甘油"]
+              source: "共识：右心衰处理步骤3"
+          step4:
+            - action: "加强利尿，严格控制输液"
+              rationale: "减轻右室容量负荷"
+              source: "共识：右心衰处理步骤4"
+          severe:
+            - action: "右心辅助装置(RVAD)"
+              indication: "药物治疗无效的严重右心衰"
+              source: "共识：右心衰处理-严重"
+        kg_triples:
+          - ["Pulmonary_Hypertension", "causes", "Acute_RV_Failure"]
+          - ["PA_Anastomosis_Issue", "causes", "RV_Pressure_Overload"]
+          - ["Acute_RV_Failure", "treat_with", "Pulmonary_Vasodilator"]
+          - ["Acute_RV_Failure", "severe_treat_with", "RVAD"]
+
+  # 免疫抑制-诱导治疗
+  immunosuppression_induction:
+    indicator_name: "免疫抑制诱导"
+    has_strategy: true
+    source: "中国心脏移植免疫抑制规范2019"
+    abnormalities:
+      induction_protocol:
+        condition: "围术期免疫诱导"
+        severity: info
+        strategies:
+          standard:
+            - action: "巴利昔单抗诱导"
+              drug: "巴利昔单抗 (Basiliximab)"
+              dose: "成人20mg/儿童12mg，术中+术后第4天各1次"
+              target: "有效阻断浓度>0.2 mg/L"
+              source: "共识：半衰期7.2±3.2天"
+          renal_impairment:
+            - action: "ATG替代方案（肾功能障碍时）"
+              drug: "ATG (抗胸腺细胞球蛋白)"
+              dose: "预防性5-7天"
+              indication: "早期肾功能障碍时替代钙调磷酸酶抑制剂"
+              source: "共识：Cr>2mg/dL时使用"
+        kg_triples:
+          - ["Transplant", "requires", "Immune_Induction"]
+          - ["Basiliximab", "blocks", "IL2_Receptor"]
+          - ["Renal_Impairment", "substitute_with", "ATG"]
+
+  # 免疫抑制-维持治疗
+  immunosuppression_maintenance:
+    indicator_name: "免疫抑制维持"
+    has_strategy: true
+    source: "中国心脏移植免疫抑制规范2019"
+    abnormalities:
+      maintenance_protocol:
+        condition: "术后免疫维持"
+        severity: info
+        strategies:
+          cni_based:
+            - action: "他克莫司为基础的三联方案"
+              drug: "他克莫司 (Tacrolimus)"
+              dose: "1-2mg Q12h（从环孢素转换：5mg 每日2次）"
+              monitoring: "谷浓度监测"
+              source: "共识：肾功能障碍起始1-2mg每日2次"
+            - action: "霉酚酸酯联合"
+              drug: "霉酚酸酯 (MMF)"
+              dose: "与CNI合用上限 2-2.5 mg/kg/日"
+              monitoring: "MPA谷浓度>1.5mg/L"
+            - action: "糖皮质激素维持"
+              drug: "泼尼松"
+              dose: "20-40 mg/日维持"
+          acute_rejection:
+            - action: "急性排斥治疗（住院）"
+              drug: "甲泼尼龙"
+              dose: "1000mg/日×3天（体重<50kg：15mg/kg）"
+              source: "共识：急性排斥住院方案"
+            - action: "急性排斥治疗（门诊）"
+              drug: "泼尼松"
+              dose: "100mg/日×5天，后每日减10mg"
+            - action: "儿童急性排斥"
+              drug: "甲泼尼龙"
+              dose: "15mg/kg/日×3天"
+        kg_triples:
+          - ["Post_Transplant", "requires", "Triple_Immunosuppression"]
+          - ["Tacrolimus", "inhibits", "Calcineurin"]
+          - ["Acute_Rejection", "treat_with", "Methylprednisolone_Pulse"]
+          - ["Long_Term_CNI", "causes", "Renal_Dysfunction"]
+
+  # 供者血管活性药物标准
+  donor_vasoactive:
+    indicator_name: "供者血管活性药物标准"
+    has_strategy: true
+    source: "中国心脏移植供心获取规范2019"
+    abnormalities:
+      donor_support:
+        condition: "供者血流动力学管理"
+        severity: info
+        strategies:
+          acceptable_doses:
+            - action: "多巴胺供者标准"
+              drug: "多巴胺"
+              dose: "<20 μg/kg/min（超大剂量排除供心）"
+              source: "共识：>20μg/kg/min排除"
+            - action: "肾上腺素供者标准"
+              drug: "肾上腺素"
+              dose: "<0.2 μg/kg/min"
+              source: "共识：>0.2μg/kg/min排除"
+            - action: "去甲肾上腺素供者标准"
+              drug: "去甲肾上腺素"
+              dose: "<0.4 μg/kg/min"
+        kg_triples:
+          - ["Brain_Death", "causes", "Catecholamine_Storm"]
+          - ["Catecholamine_Storm", "causes", "Coronary_Spasm"]
+          - ["High_Dose_Catecholamine", "indicates", "Donor_Exclusion"]
+
+# =============================================================================
+# 12. 复合升级策略 (Consensus-Enhanced)
+# =============================================================================
+consensus_escalation_protocols:
+  post_transplant_hemodynamic:
+    name: "移植后血流动力学管理升级方案（共识）"
+    source: "中国心脏移植共识2019"
+    phase: "术后ICU"
+    steps:
+      1:
+        condition: "去神经后心率不足"
+        action: "异丙肾上腺素 0.01-0.1 μg/kg/min + 临时起搏"
+      2:
+        condition: "正性肌力支持"
+        action: "多巴酚丁胺 2-5天（取决于供心功能）"
+        duration: "2-5天"
+      3:
+        condition: "肺动脉高压/右心衰"
+        action: "米力农 0.3-1 μg/kg/min + iNO"
+      4:
+        condition: "药物无效"
+        action: "VA-ECMO或RVAD支持"
+
+  immunosuppression_adjustment:
+    name: "免疫抑制调整升级方案（共识）"
+    source: "中国心脏移植免疫抑制规范2019"
+    steps:
+      1:
+        condition: "肌酐>1.7 mg/dL"
+        action: "他克莫司减量"
+      2:
+        condition: "肌酐>2.0 mg/dL"
+        action: "ATG替代钙调磷酸酶抑制剂"
+      3:
+        condition: "LVEF<50%（排斥）"
+        action: "甲泼尼龙 1000mg/日×3天"
+      4:
+        condition: "长期CNI肾损害"
+        action: "GFR<60→CKD方案；考虑mTOR抑制剂转换"
 
 # =============================================================================
 # 无策略指标汇总

@@ -454,6 +454,38 @@ class IndicatorManager:
 
         return result
 
+    def get_consensus_causal_relationships(self) -> List[Dict]:
+        """获取共识来源的因果关系（用于前端展示）"""
+        consensus_rels = []
+        for rel in self.causal_relationships:
+            if rel.get("source") or rel.get("category"):
+                consensus_rels.append(rel)
+        return consensus_rels
+
+    def get_all_indicators_summary(self) -> Dict[str, Any]:
+        """获取所有指标的摘要信息（用于前端展示）"""
+        return {
+            "setpoint_count": len(self.setpoints),
+            "readout_count": len(self.readouts),
+            "injury_marker_count": len(self.injury_markers),
+            "causal_count": len(self.causal_relationships),
+            "consensus_causal_count": len(self.get_consensus_causal_relationships()),
+            "setpoints": {k: {
+                "name": v.name, "domain": v.domain, "unit": v.unit,
+                "target_range": v.target_range
+            } for k, v in self.setpoints.items()},
+            "readouts": {k: {
+                "name": v.name, "domain": v.domain, "unit": v.unit,
+                "risk_threshold": v.risk_threshold,
+                "risk_direction": v.risk_direction.value,
+                "source": getattr(v, 'notes', '')
+            } for k, v in self.readouts.items()},
+            "injury_markers": {k: {
+                "name": v.name, "domain": v.domain, "unit": v.unit,
+                "interpretation": v.interpretation
+            } for k, v in self.injury_markers.items()}
+        }
+
     def format_analysis_report(self, analysis: Dict[str, Any]) -> str:
         """格式化分析报告"""
         lines = ["=" * 60, "灌注指标分析报告", "=" * 60, ""]

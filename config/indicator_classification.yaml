@@ -235,6 +235,82 @@ readouts:
 
 
 # -----------------------------------------------------------------------------
+# 移植共识新增Readouts (来自共识文献提取)
+# -----------------------------------------------------------------------------
+  # === 移植评估读数（共识来源） ===
+  PVR_transplant:
+    name: "肺血管阻力(移植评估)"
+    domain: "肺循环"
+    unit: "Wood Units"
+    risk_threshold: 5.0
+    risk_direction: "higher_is_worse"
+    influenced_by: ["Temperature", "PaO2", "pH"]
+    interpretation: ">5Wood移植禁忌; >2.5需药物治疗; <4可接受（需扩张剂反应）"
+    source: "中国心脏移植共识2019"
+
+  TPG:
+    name: "跨肺压差"
+    domain: "肺循环"
+    unit: "mmHg"
+    risk_threshold: 15
+    risk_direction: "higher_is_worse"
+    influenced_by: ["PaO2", "pH", "Temperature"]
+    interpretation: ">14-15mmHg为移植禁忌"
+    source: "中国心脏移植共识2019"
+
+  LVEF_transplant:
+    name: "射血分数(移植评估)"
+    domain: "收缩功能"
+    unit: "%"
+    risk_threshold: 50
+    risk_direction: "lower_is_worse"
+    influenced_by: ["Dobutamine", "LAP", "AoDP"]
+    interpretation: "供者>50%; <50%提示急性排斥需立即治疗"
+    source: "中国心脏移植共识2019"
+
+  GFR_renal:
+    name: "肾小球滤过率"
+    domain: "肾功能"
+    unit: "mL/min/1.73m²"
+    risk_threshold: 60
+    risk_direction: "lower_is_worse"
+    influenced_by: ["AoDP", "Dobutamine"]
+    interpretation: "<60需CKD监测; 年降>4mL/min为警示"
+    source: "中国心脏移植共识2019"
+    notes: "长期CNI使用→1年20%肾损，4年25%严重"
+
+  Creatinine_renal:
+    name: "肌酐"
+    domain: "肾功能"
+    unit: "mg/dL"
+    risk_threshold: 1.7
+    risk_direction: "higher_is_worse"
+    influenced_by: ["AoDP", "Dobutamine"]
+    interpretation: ">1.7 CNI减量; >2.0 ATG替代"
+    source: "中国心脏移植共识2019"
+
+  BNP:
+    name: "脑钠肽"
+    domain: "心衰标志"
+    unit: "pg/mL"
+    risk_threshold: 400
+    risk_direction: "higher_is_worse"
+    influenced_by: ["LAP", "Dobutamine", "AoDP"]
+    interpretation: "心衰严重程度标志物，用于移植等待名单评估"
+    source: "中国心脏移植共识2019"
+
+  PASP:
+    name: "肺动脉收缩压"
+    domain: "肺循环"
+    unit: "mmHg"
+    risk_threshold: 50
+    risk_direction: "higher_is_worse"
+    influenced_by: ["PaO2", "pH", "Temperature"]
+    interpretation: ">50mmHg右室难承受; >60-70mmHg移植禁忌"
+    source: "中国心脏移植共识2019"
+
+
+# -----------------------------------------------------------------------------
 # 不可设定的损伤标志物 (Injury Markers) - 只能监测
 # -----------------------------------------------------------------------------
 injury_markers:
@@ -256,6 +332,15 @@ injury_markers:
     interpretation: "反映微血管完整性和灌注压管理"
     influenced_by: ["AoDP", "灌注液渗透压", "微血管损伤"]
     notes: "量化方法：灌注前后心脏重量差"
+
+  ColdIschemiaTime:
+    name: "冷缺血时间"
+    domain: "供心保存"
+    unit: "h"
+    risk_threshold: null
+    interpretation: "共识：<6h标准，<8h最长极限"
+    trend_is_key: false
+    notes: "不可逆，只能记录和评估"
 
 
 # -----------------------------------------------------------------------------
@@ -295,6 +380,79 @@ causal_relationships:
   - from: "PaO2"
     to: "Lactate_arterial"
     effect: "PaO2↑ → 氧供↑ → Lactate↓"
+
+  # === 移植共识新增因果关系 ===
+  - from: "脑死亡"
+    to: "儿茶酚胺风暴"
+    effect: "脑死亡→儿茶酚胺风暴→冠脉痉挛→再灌注损伤"
+    source: "心脏移植共识"
+    category: "供者管理"
+
+  - from: "高钾停搏液"
+    to: "血管内皮损伤"
+    effect: "高钾(>30mEq/L)→内皮损伤→加速移植物血管病变"
+    source: "心脏移植共识"
+    category: "心肌保护"
+
+  - from: "心脏去神经"
+    to: "心率降低"
+    effect: "移植后去神经→基础心率降低→需异丙肾或起搏维持"
+    source: "心脏移植共识"
+    category: "术后管理"
+
+  - from: "心肌缺血"
+    to: "舒张顺应性降低"
+    effect: "缺血→舒张僵硬→需更高充盈压维持心功能"
+    source: "心脏移植共识"
+    category: "心功能"
+
+  - from: "肺血管阻力升高"
+    to: "急性右心衰"
+    effect: "PVR↑→右室后负荷↑→急性右心衰(>50mmHg难承受)"
+    source: "心脏移植共识"
+    category: "右心功能"
+
+  - from: "肺动脉干过长"
+    to: "肺动脉扭曲"
+    effect: "吻合口技术问题→肺动脉扭曲→右室高压"
+    source: "心脏移植共识"
+    category: "手术技术"
+
+  - from: "长期CNI使用"
+    to: "肾功能不全"
+    effect: "钙调磷酸酶抑制剂肾毒性→1年20%肾损，4年25%严重"
+    source: "心脏移植共识"
+    category: "免疫抑制并发症"
+
+  - from: "糖皮质激素"
+    to: "骨质疏松"
+    effect: "长期激素→腰椎骨质流失最严重，前6月最迅速"
+    source: "心脏移植共识"
+    category: "免疫抑制并发症"
+
+  - from: "术前心力衰竭"
+    to: "肾储备差"
+    effect: "长期低灌注+利尿剂→肾功能储备差→术后肾损伤风险"
+    source: "心脏移植共识"
+    category: "术前评估"
+
+  - from: "术后低心排"
+    to: "肾功能衰竭"
+    effect: "短暂心输出量降低即可影响肾脏功能"
+    source: "心脏移植共识"
+    category: "术后并发症"
+
+  - from: "CMV感染"
+    to: "移植物血管病变"
+    effect: "CMV→提升血管病变和排斥发生率"
+    source: "心脏移植共识"
+    category: "感染/免疫"
+
+  - from: "体外循环侧枝"
+    to: "供心容量超负荷"
+    effect: "侧枝循环→供心容量过大→肺功能障碍→肺高压→右心衰"
+    source: "心脏移植共识"
+    category: "手术技术"
 
 
 # -----------------------------------------------------------------------------

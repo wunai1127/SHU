@@ -4,8 +4,9 @@
 # 用途: 与当前指标对比，评估变化趋势和偏离程度
 # =============================================================================
 
-version: "1.0.0"
-last_updated: "2025-01-24"
+version: "2.0.0"
+last_updated: "2025-01-29"
+update_notes: "新增移植共识特异性指标baseline（TPG/PASP/肌酐/GFR/胆红素/冷缺血/PeakVO2等）"
 
 # -----------------------------------------------------------------------------
 # Baseline 定义说明
@@ -108,6 +109,60 @@ confirmed_baselines:
     unit: "mL/h"
     acceptable_deviation: 50
     deviation_unit: "mL/h"
+    confidence: high
+
+  # 移植共识新增 (Transplant Consensus)
+  TPG:
+    baseline_value: 10
+    unit: "mmHg"
+    acceptable_deviation: 3
+    deviation_unit: "mmHg"
+    confidence: high
+    source: "中国心脏移植共识2019"
+
+  PASP:
+    baseline_value: 30
+    unit: "mmHg"
+    acceptable_deviation: 10
+    deviation_unit: "mmHg"
+    confidence: high
+    source: "中国心脏移植共识2019"
+
+  Creatinine:
+    baseline_value: 1.0
+    unit: "mg/dL"
+    acceptable_deviation: 0.5
+    deviation_unit: "mg/dL"
+    confidence: high
+    source: "中国心脏移植共识2019"
+
+  GFR:
+    baseline_value: 90
+    unit: "mL/min/1.73m²"
+    acceptable_deviation: 15
+    deviation_unit: "mL/min/1.73m²"
+    confidence: high
+
+  Bilirubin:
+    baseline_value: 0.8
+    unit: "mg/dL"
+    acceptable_deviation: 0.5
+    deviation_unit: "mg/dL"
+    confidence: high
+
+  ColdIschemiaTime:
+    baseline_value: 4
+    unit: "h"
+    acceptable_deviation: 1
+    deviation_unit: "h"
+    confidence: high
+    source: "供心获取规范"
+
+  PeakVO2:
+    baseline_value: 20
+    unit: "mL/min/kg"
+    acceptable_deviation: 3
+    deviation_unit: "mL/min/kg"
     confidence: high
 
 # -----------------------------------------------------------------------------

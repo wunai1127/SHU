@@ -187,6 +187,56 @@ class KGEvidenceCollector:
             'target_min': 60,
             'target_max': 100,
             'unit': 'bpm'
+        },
+        # === 移植共识新增指标 ===
+        'PVR': {
+            'high': ['pulmonary hypertension', 'right heart failure', 'RV dysfunction'],
+            'keywords': ['pulmonary vascular resistance', 'PVR'],
+            'target_min': 0,
+            'target_max': 2.5,
+            'unit': 'Wood Units'
+        },
+        'TPG': {
+            'high': ['transpulmonary gradient', 'pulmonary hypertension', 'transplant contraindication'],
+            'keywords': ['transpulmonary gradient', 'TPG'],
+            'target_min': 0,
+            'target_max': 12,
+            'unit': 'mmHg'
+        },
+        'PASP': {
+            'high': ['pulmonary artery pressure', 'right ventricular failure', 'RV dysfunction'],
+            'keywords': ['pulmonary artery systolic pressure', 'PASP'],
+            'target_min': 15,
+            'target_max': 40,
+            'unit': 'mmHg'
+        },
+        'Creatinine': {
+            'high': ['renal dysfunction', 'CNI nephrotoxicity', 'acute kidney injury'],
+            'keywords': ['creatinine', 'renal function'],
+            'target_min': 0.5,
+            'target_max': 1.5,
+            'unit': 'mg/dL'
+        },
+        'GFR': {
+            'low': ['chronic kidney disease', 'renal impairment', 'CNI nephrotoxicity'],
+            'keywords': ['GFR', 'glomerular filtration rate'],
+            'target_min': 60,
+            'target_max': 120,
+            'unit': 'mL/min/1.73m²'
+        },
+        'Bilirubin': {
+            'high': ['hepatic dysfunction', 'cholestasis', 'liver failure'],
+            'keywords': ['bilirubin', 'liver function'],
+            'target_min': 0.1,
+            'target_max': 1.2,
+            'unit': 'mg/dL'
+        },
+        'EF': {
+            'low': ['systolic dysfunction', 'graft failure', 'acute rejection'],
+            'keywords': ['ejection fraction', 'left ventricular function'],
+            'target_min': 50,
+            'target_max': 70,
+            'unit': '%'
         }
     }
 
@@ -689,6 +739,147 @@ class LLMStrategyGenerator:
             'monitoring': ['CF: 每30分钟', 'MAP: 每5分钟', 'Lactate: 每1小时', 'ECG: 持续'],
             'confidence': 0.80,
             'warnings': ['CF降低提示移植心缺血风险', '监测心肌酶谱']
+        },
+        # ===== 移植共识新增策略 =====
+        'PVR_High': {
+            'intervention': '肺血管扩张治疗（共识）',
+            'intervention_details': {
+                'drug': '米力农 + NO + 前列腺素E1',
+                'dose': '米力农 0.3-1 μg/kg/min + iNO 20-40ppm；前列腺素E1/硝普钠/西地那非备选',
+                'target': 'PVR < 2.5 Wood Units'
+            },
+            'target_value': 2.0,
+            'target_range': [0.5, 2.5],
+            'reasoning_chain': [
+                'Step 1 - 观察: PVR升高，右心后负荷增加',
+                'Step 2 - 病理生理分析: 高PVR→右室难以承受→急性右心衰；共识>50mmHg肺动脉压为危险',
+                'Step 3 - 机制关联: [Evidence-共识] 肺血管阻力升高→急性右心衰→移植心功能障碍',
+                'Step 4 - 干预选择: 联合肺血管扩张（米力农+NO首选），共识方案',
+                'Step 5 - 预期效果: PVR降至<2.5 Wood，右心功能改善'
+            ],
+            'monitoring': ['PVR: 每1小时', 'CVP: 每30分钟', 'CI: 每小时', 'MAP: 每15分钟'],
+            'confidence': 0.85,
+            'warnings': ['PVR>5 Wood为移植禁忌', '监测右心功能', '米力农可致低血压']
+        },
+        'TPG_High': {
+            'intervention': '降低跨肺压差（共识）',
+            'intervention_details': {
+                'drug': '肺血管扩张剂',
+                'dose': 'iNO 20-40ppm + 米力农 0.3-1 μg/kg/min',
+                'target': 'TPG < 12 mmHg'
+            },
+            'target_value': 10,
+            'target_range': [5, 12],
+            'reasoning_chain': [
+                'Step 1 - 观察: TPG >12 mmHg，跨肺压差升高',
+                'Step 2 - 病理生理分析: TPG=mPAP-PCWP，反映固定性肺血管阻力',
+                'Step 3 - 机制关联: [Evidence-共识] TPG>14-15 mmHg为移植禁忌',
+                'Step 4 - 干预选择: 肺血管扩张剂试验，评估可逆性',
+                'Step 5 - 预期效果: TPG降至<12 mmHg'
+            ],
+            'monitoring': ['TPG: 每2小时', 'mPAP: 每小时', 'PCWP: 每小时'],
+            'confidence': 0.80,
+            'warnings': ['TPG>14-15 mmHg为移植禁忌', '需评估扩张剂反应性']
+        },
+        'PASP_High': {
+            'intervention': '降低肺动脉压（共识）',
+            'intervention_details': {
+                'drug': '联合肺血管扩张',
+                'dose': '米力农 + iNO + 前列腺素E1',
+                'target': 'PASP < 40 mmHg'
+            },
+            'target_value': 35,
+            'target_range': [15, 40],
+            'reasoning_chain': [
+                'Step 1 - 观察: PASP升高，肺动脉高压',
+                'Step 2 - 病理生理分析: 共识：>50mmHg右室难承受，>60-70mmHg禁忌',
+                'Step 3 - 机制关联: [Evidence-共识] PASP↑→右室压力超负荷→急性右心衰',
+                'Step 4 - 干预选择: 按共识右心衰处理流程：检查吻合→纠正缺氧酸中毒→肺血管扩张',
+                'Step 5 - 预期效果: PASP降至<40 mmHg，右室功能改善'
+            ],
+            'monitoring': ['PASP: 每30分钟', 'CVP: 每30分钟', 'CI: 每小时'],
+            'confidence': 0.80,
+            'warnings': ['PASP>50为高危', '>60-70禁忌', '监测右心功能']
+        },
+        'Creatinine_High': {
+            'intervention': '免疫抑制方案调整（共识）',
+            'intervention_details': {
+                'drug': '他克莫司减量 / ATG替代',
+                'dose': 'Cr>1.7→CNI减量; Cr>2.0→ATG替代CNI',
+                'target': '肌酐 < 1.5 mg/dL'
+            },
+            'target_value': 1.0,
+            'target_range': [0.5, 1.5],
+            'reasoning_chain': [
+                'Step 1 - 观察: 肌酐升高，肾功能不全',
+                'Step 2 - 病理生理分析: 长期CNI使用→肾毒性→1年20%受损，4年25%严重',
+                'Step 3 - 机制关联: [Evidence-共识] 钙调磷酸酶抑制剂→肾小管毒性→肾功能下降',
+                'Step 4 - 干预选择: 按共识方案调整免疫抑制剂',
+                'Step 5 - 预期效果: 肾功能稳定/改善'
+            ],
+            'monitoring': ['肌酐: 每日', 'GFR: 每周', '他克莫司谷浓度: 每日'],
+            'confidence': 0.85,
+            'warnings': ['CNI肾毒性是移植后常见并发症', '减量需平衡排斥风险']
+        },
+        'GFR_Low': {
+            'intervention': 'CKD监测方案（共识）',
+            'intervention_details': {
+                'drug': 'CNI减量/转换mTOR抑制剂',
+                'dose': '根据CKD分期调整',
+                'target': 'GFR稳定或改善'
+            },
+            'target_value': 60,
+            'target_range': [60, 120],
+            'reasoning_chain': [
+                'Step 1 - 观察: GFR<60 mL/min，慢性肾病',
+                'Step 2 - 病理生理分析: 术前心衰低灌注+长期利尿剂→肾储备差',
+                'Step 3 - 机制关联: [Evidence-共识] 术后低心排+CNI肾毒性→GFR下降',
+                'Step 4 - 干预选择: CKD分期管理，考虑mTOR抑制剂转换',
+                'Step 5 - 预期效果: GFR下降速率减缓'
+            ],
+            'monitoring': ['GFR: 每月', '肌酐: 每周', '尿蛋白: 每月'],
+            'confidence': 0.75,
+            'warnings': ['年降>4 mL/min为警示', '需肾内科协同管理']
+        },
+        'EF_Low': {
+            'intervention': '急性排斥评估与治疗（共识）',
+            'intervention_details': {
+                'drug': '甲泼尼龙冲击',
+                'dose': '甲泼尼龙 1000mg/日×3天（<50kg: 15mg/kg）',
+                'target': 'LVEF > 50%'
+            },
+            'target_value': 55,
+            'target_range': [50, 70],
+            'reasoning_chain': [
+                'Step 1 - 观察: LVEF下降，供者标准>50%',
+                'Step 2 - 病理生理分析: LVEF<50%提示急性排斥或移植心功能障碍',
+                'Step 3 - 机制关联: [Evidence-共识] 急性排斥→心肌炎症→收缩功能下降',
+                'Step 4 - 干预选择: 甲泼尼龙冲击治疗（共识急性排斥方案）',
+                'Step 5 - 预期效果: 排斥控制后LVEF恢复'
+            ],
+            'monitoring': ['LVEF: 每12小时超声', 'cTnI: 每6小时', 'BNP: 每日'],
+            'confidence': 0.80,
+            'warnings': ['需排除其他LVEF下降原因', '活检确认排斥类型']
+        },
+        'Bilirubin_High': {
+            'intervention': '肝功能评估（共识）',
+            'intervention_details': {
+                'drug': '对症处理 + 药物调整',
+                'dose': '根据肝功能分级调整免疫抑制剂剂量',
+                'target': '胆红素 < 2.0 mg/dL'
+            },
+            'target_value': 1.0,
+            'target_range': [0.1, 1.2],
+            'reasoning_chain': [
+                'Step 1 - 观察: 胆红素升高，肝功能异常',
+                'Step 2 - 病理生理分析: >2.5mg/dL提示肝功能不全',
+                'Step 3 - 机制关联: [Evidence-共识] 右心衰/药物毒性→肝淤血→胆红素升高',
+                'Step 4 - 干预选择: 明确病因（右心衰vs药物vs感染），针对性处理',
+                'Step 5 - 预期效果: 肝功能改善'
+            ],
+            'monitoring': ['胆红素: 每日', '转氨酶: 每日', '凝血功能: 每2日'],
+            'confidence': 0.70,
+            'warnings': ['>2.5mg/dL为肝功能不全标志', '需排除药物性肝损']
         }
     }
 
@@ -967,7 +1158,7 @@ class EvidenceStrategyEngine:
         if not abnormalities:
             return "LOW"
 
-        critical_indicators = {'MAP', 'CI', 'K_A'}
+        critical_indicators = {'MAP', 'CI', 'K_A', 'PVR', 'PASP', 'pH', 'EF'}
         has_critical = any(a['indicator'] in critical_indicators for a in abnormalities)
 
         if len(abnormalities) >= 3 or has_critical:

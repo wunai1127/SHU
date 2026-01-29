@@ -184,6 +184,7 @@ def get_demo_data() -> Dict[str, Any]:
 # 指标配置
 # =============================================================================
 INDICATOR_CONFIG = {
+    # 原有灌注指标
     "MAP": {"name": "平均动脉压", "unit": "mmHg", "target": (65, 90), "red_line": 50, "critical": 60},
     "Lactate": {"name": "乳酸", "unit": "mmol/L", "target": (0, 4.0), "red_line": 6.0, "critical": 4.0, "higher_is_worse": True},
     "SvO2": {"name": "混合静脉血氧饱和度", "unit": "%", "target": (65, 80), "red_line": None, "critical": None},
@@ -191,7 +192,15 @@ INDICATOR_CONFIG = {
     "CI": {"name": "心指数", "unit": "L/min/m²", "target": (2.2, 4.0), "red_line": 1.8, "critical": 2.0},
     "CvO2": {"name": "静脉血氧含量", "unit": "mL/dL", "target": (12, 16), "red_line": 8, "critical": 10},
     "HR": {"name": "心率", "unit": "bpm", "target": (60, 100), "red_line": None, "critical": None},
-    "pH": {"name": "动脉pH", "unit": "", "target": (7.35, 7.45), "red_line": 7.20, "critical": 7.30}
+    "pH": {"name": "动脉pH", "unit": "", "target": (7.35, 7.45), "red_line": 7.20, "critical": 7.30},
+    # 移植共识新增指标
+    "PVR": {"name": "肺血管阻力", "unit": "Wood", "target": (0.5, 2.5), "red_line": 5.0, "critical": 4.0, "higher_is_worse": True},
+    "TPG": {"name": "跨肺压差", "unit": "mmHg", "target": (5, 12), "red_line": 15, "critical": 14, "higher_is_worse": True},
+    "PASP": {"name": "肺动脉收缩压", "unit": "mmHg", "target": (15, 40), "red_line": 70, "critical": 50, "higher_is_worse": True},
+    "Creatinine": {"name": "肌酐", "unit": "mg/dL", "target": (0.5, 1.5), "red_line": 2.0, "critical": 1.7, "higher_is_worse": True},
+    "GFR": {"name": "肾小球滤过率", "unit": "mL/min", "target": (60, 120), "red_line": 30, "critical": 60},
+    "EF": {"name": "射血分数", "unit": "%", "target": (50, 70), "red_line": 30, "critical": 50},
+    "Bilirubin": {"name": "胆红素", "unit": "mg/dL", "target": (0.1, 1.2), "red_line": 2.5, "critical": 2.0, "higher_is_worse": True},
 }
 
 def get_status(indicator: str, value: float) -> Tuple[str, str]:

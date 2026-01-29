@@ -5,9 +5,9 @@
 # 状态: confirmed(已确认), provisional(暂定), pending(待验证)
 # =============================================================================
 
-version: "2.0.0"
-last_updated: "2025-01-24"
-update_notes: "将所有pending指标提升为medium confidence，添加文献来源"
+version: "3.0.0"
+last_updated: "2025-01-29"
+update_notes: "整合心脏移植共识文献知识：新增移植特异性阈值(PVR/TPG/PAP/肌酐/GFR/胆红素/冷缺血/PeakVO2)，更新已有指标共识阈值"
 
 # -----------------------------------------------------------------------------
 # 1. 心功能指标 (Cardiac Function)
@@ -74,21 +74,28 @@ blood_pressure:
     name: "平均动脉压"
     name_en: "Mean Arterial Pressure"
     unit: "mmHg"
-    confidence: medium
+    confidence: high
     status: confirmed
     source:
       - "Hemodynamic guidelines"
       - "Critical care standards"
+      - "中国心脏移植共识2019 - 心脏外科学ch21"
     thresholds:
       target:
         min: 65
         max: 80
         description: "目标范围"
+      cpb_minimum:
+        operator: ">="
+        value: 40
+        description: "复温期CPB最低灌注压（共识）"
       red_line:
         operator: "<"
         value: 60
         description: "红线"
     baseline_reference: 70
+    escalation_rule: "MAP<60→血管活性药; CPB期间MAP≥40mmHg"
+    notes: "共识：复温期CPB最低MAP≥40mmHg，CPB流速4.2-4.8L/min"
 
   # 主动脉压 (Aortic Pressure) - OCS系统
   AOP:
@@ -397,21 +404,27 @@ pulmonary_vascular:
     source:
       - "ISHLT Guidelines"
       - "Heart transplant protocols"
+      - "中国心脏移植共识2019"
     thresholds:
-      warning:
-        operator: ">"
-        value: 2.5
-        description: "警戒"
-      red_line:
-        operator: ">"
-        value: 3.0
-        description: "红线"
       target:
         operator: "<"
         value: 2.5
         description: "目标"
+      warning:
+        operator: ">"
+        value: 2.5
+        description: "警戒，需药物治疗"
+      red_line:
+        operator: ">"
+        value: 4.0
+        description: "可接受上限（需扩张剂反应性试验）"
+      contraindication:
+        operator: ">"
+        value: 5.0
+        description: "移植禁忌（共识）"
     baseline_reference: 2.0
-    notes: "受体端重要评估指标"
+    escalation_rule: "PVR > 2.5 → 肺血管扩张剂; PVR > 5.0 → 移植禁忌"
+    notes: "受体端重要评估指标；共识：>5Wood禁忌，<4Wood可接受"
 
 # -----------------------------------------------------------------------------
 # 7. 冠脉灌注指标 (Coronary Perfusion)
@@ -644,3 +657,260 @@ myocardial_mechanics:
       notes: "主要用于相对变化评估，绝对值因个体差异大"
     baseline_reference: null
     notes: "MVO2与PVA线性相关(r=0.92)；效率=1/斜率，正常~40%"
+
+# -----------------------------------------------------------------------------
+# 10. 移植共识特异性指标 (Transplant Consensus)
+# -----------------------------------------------------------------------------
+transplant_consensus:
+  # 跨肺压差 (Trans-Pulmonary Gradient)
+  TPG:
+    name: "跨肺压差"
+    name_en: "Trans-Pulmonary Gradient"
+    unit: "mmHg"
+    confidence: high
+    status: confirmed
+    source:
+      - "中国心脏移植共识2019"
+      - "心脏外科学ch21"
+    thresholds:
+      target:
+        operator: "<"
+        value: 12
+        description: "正常/可接受"
+      warning:
+        operator: ">"
+        value: 12
+        description: "需评估肺血管扩张剂反应"
+      contraindication:
+        operator: ">"
+        value: 15
+        description: "移植禁忌（共识：>14-15mmHg）"
+    baseline_reference: 10
+    notes: "TPG = mPAP - PCWP; >14-15mmHg为移植禁忌"
+
+  # 肺动脉收缩压
+  PASP:
+    name: "肺动脉收缩压"
+    name_en: "Pulmonary Artery Systolic Pressure"
+    unit: "mmHg"
+    confidence: high
+    status: confirmed
+    source:
+      - "心脏外科学ch21"
+      - "中国心脏移植共识2019"
+    thresholds:
+      target:
+        operator: "<"
+        value: 40
+        description: "正常范围"
+      warning:
+        operator: ">"
+        value: 50
+        description: "右室难以承受"
+      red_line:
+        operator: ">"
+        value: 60
+        description: "明显右室功能障碍"
+      contraindication:
+        operator: ">"
+        value: 70
+        description: "移植禁忌"
+    baseline_reference: 30
+    notes: "共识：>50mmHg右室难承受，>60-70mmHg禁忌"
+
+  # 肌酐
+  Creatinine:
+    name: "肌酐"
+    name_en: "Creatinine"
+    unit: "mg/dL"
+    confidence: high
+    status: confirmed
+    source:
+      - "心脏外科学ch21"
+      - "免疫抑制规范"
+    thresholds:
+      target:
+        operator: "<"
+        value: 1.5
+        description: "正常"
+      warning:
+        operator: ">"
+        value: 1.7
+        description: "肾功能不全，他克莫司需减量"
+      red_line:
+        operator: ">"
+        value: 2.0
+        description: "ATG替代钙调磷酸酶抑制剂"
+    baseline_reference: 1.0
+    escalation_rule: "Cr>1.7→CNI减量; Cr>2.0→ATG替代CNI"
+    notes: "共识：>1.7减量，>2.0替代方案"
+
+  # 肌酐清除率
+  CrCl:
+    name: "肌酐清除率"
+    name_en: "Creatinine Clearance"
+    unit: "mL/min"
+    confidence: high
+    status: confirmed
+    source:
+      - "心脏外科学ch21"
+    thresholds:
+      target:
+        operator: ">"
+        value: 60
+        description: "肾功能可接受"
+      warning:
+        operator: "<"
+        value: 50
+        description: "肾功能不全"
+      contraindication:
+        operator: "<"
+        value: 40
+        description: "移植相对禁忌"
+    baseline_reference: 80
+    notes: "共识：<40-50mL/min为移植相对禁忌"
+
+  # GFR
+  GFR:
+    name: "肾小球滤过率"
+    name_en: "Glomerular Filtration Rate"
+    unit: "mL/min/1.73m²"
+    confidence: high
+    status: confirmed
+    source:
+      - "心脏外科学ch21"
+    thresholds:
+      target:
+        operator: ">"
+        value: 60
+        description: "正常"
+      warning:
+        operator: "<"
+        value: 60
+        description: "CKD监测"
+    baseline_reference: 90
+    escalation_rule: "GFR<60→CKD监测; 年降>4mL/min→警示"
+    notes: "共识：<60需CKD监测，年下降>4mL/min/年为警示信号"
+
+  # 胆红素
+  Bilirubin:
+    name: "胆红素"
+    name_en: "Bilirubin"
+    unit: "mg/dL"
+    confidence: high
+    status: confirmed
+    source:
+      - "心脏外科学ch21"
+    thresholds:
+      target:
+        operator: "<"
+        value: 1.2
+        description: "正常"
+      warning:
+        operator: ">"
+        value: 2.0
+        description: "肝功能异常"
+      red_line:
+        operator: ">"
+        value: 2.5
+        description: "肝功能不全"
+    baseline_reference: 0.8
+    notes: "共识：>2.5mg/dL提示肝功能不全"
+
+  # 供心冷缺血时间
+  ColdIschemiaTime:
+    name: "冷缺血时间"
+    name_en: "Cold Ischemia Time"
+    unit: "h"
+    confidence: high
+    status: confirmed
+    source:
+      - "供心获取规范"
+      - "中国心脏移植共识2019"
+    thresholds:
+      target:
+        operator: "<"
+        value: 4
+        description: "理想"
+      accept:
+        operator: "<"
+        value: 6
+        description: "标准可接受"
+      red_line:
+        operator: ">"
+        value: 6
+        description: "延长风险增加"
+      reject:
+        operator: ">"
+        value: 8
+        description: "最长极限"
+    baseline_reference: 4
+    notes: "共识：<6h标准，<8h最长极限"
+
+  # 峰值摄氧量
+  PeakVO2:
+    name: "峰值摄氧量"
+    name_en: "Peak Oxygen Consumption"
+    unit: "mL/min/kg"
+    confidence: high
+    status: confirmed
+    source:
+      - "受者术前评估规范"
+      - "中国心脏移植共识2019"
+    thresholds:
+      transplant_indication:
+        operator: "<"
+        value: 14
+        description: "进入移植等待名单"
+      urgent:
+        operator: "<"
+        value: 10
+        description: "紧急移植指征"
+      defer:
+        operator: ">"
+        value: 15
+        description: "暂缓移植"
+    baseline_reference: 20
+    notes: "共识：<10-14进入等待名单，>15暂缓"
+
+  # 供者左室壁厚度
+  LVWallThickness:
+    name: "左室壁厚度"
+    name_en: "Left Ventricular Wall Thickness"
+    unit: "mm"
+    confidence: high
+    status: confirmed
+    source:
+      - "供心获取规范"
+    thresholds:
+      target:
+        operator: "<"
+        value: 12
+        description: "正常"
+      reject:
+        operator: ">"
+        value: 14
+        description: "严重左室肥厚，排除供心"
+    baseline_reference: 10
+    notes: "共识：>14mm排除供心"
+
+  # 霉酚酸谷浓度
+  MPA_Trough:
+    name: "霉酚酸谷浓度"
+    name_en: "MPA Trough Concentration"
+    unit: "mg/L"
+    confidence: medium
+    status: confirmed
+    source:
+      - "免疫抑制规范"
+    thresholds:
+      therapeutic:
+        operator: ">"
+        value: 1.5
+        description: "治疗浓度"
+      subtherapeutic:
+        operator: "<"
+        value: 1.5
+        description: "未达治疗剂量"
+    baseline_reference: 2.0
+    notes: "共识：<1.5mg/L未达治疗剂量"
