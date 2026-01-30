@@ -44,7 +44,7 @@ class StrategyAgent(BaseAgent):
     def setup_tools(self):
         try:
             from evidence_strategy_engine import EvidenceStrategyEngine
-            self._ese = EvidenceStrategyEngine(config_dir=self._config_dir)
+            self._ese = EvidenceStrategyEngine()
             self.register_tool(AgentTool(
                 name="evidence_recommender",
                 description="证据驱动策略推荐: 查询干预库+KG三元组，生成含CoT推理链的完整推荐",
