@@ -38,6 +38,19 @@ except ImportError as e:
     st.warning(f"后端模块导入警告: {e}")
     BACKEND_AVAILABLE = False
 
+# 导入Agent系统
+try:
+    from agents.base import EventBus, PatientState
+    from agents.monitor_agent import MonitorAgent
+    from agents.diagnosis_agent import DiagnosisAgent
+    from agents.strategy_agent import StrategyAgent
+    from agents.knowledge_agent import KnowledgeAgent
+    from agents.communication_agent import CommunicationAgent
+    from agents.coordinator import CoordinatorAgent
+    AGENT_AVAILABLE = True
+except ImportError as e:
+    AGENT_AVAILABLE = False
+
 # =============================================================================
 # 页面配置
 # =============================================================================
@@ -608,21 +621,73 @@ def main():
             default=["MAP", "Lactate", "K_A", "CI"]
         )
 
+        # Agent模式
+        st.markdown("### 🤖 Agent系统")
+        agent_mode = st.toggle("启用多Agent管线", value=AGENT_AVAILABLE, disabled=not AGENT_AVAILABLE)
+
         # 系统状态
         st.markdown("### 🔌 系统状态")
         st.markdown(f"- **后端模块:** {'✅ 已加载' if BACKEND_AVAILABLE else '⚠️ 部分加载'}")
+        st.markdown(f"- **Agent系统:** {'✅ 可用' if AGENT_AVAILABLE else '⚪ 不可用'}")
         st.markdown(f"- **Neo4j:** ⚪ 未连接")
         st.markdown(f"- **LLM:** ⚪ 未配置")
 
+        # Agent详情
+        if agent_mode and AGENT_AVAILABLE:
+            with st.expander("Agent工具详情"):
+                bus = EventBus()
+                ps = PatientState()
+                agent_info = {
+                    "Monitor (感知)": MonitorAgent(bus, ps),
+                    "Diagnosis (分析)": DiagnosisAgent(bus, ps),
+                    "Strategy (决策)": StrategyAgent(bus, ps),
+                    "Knowledge (知识)": KnowledgeAgent(bus, ps),
+                    "Communication (交互)": CommunicationAgent(bus, ps),
+                }
+                for name, agent in agent_info.items():
+                    tools = agent.get_tool_list()
+                    st.markdown(f"**{name}**: {len(tools)} tools")
+                    for t in tools:
+                        st.caption(f"  - {t['name']}: {t['description'][:40]}...")
+
         st.markdown("---")
-        st.markdown("*HTTG Perfusion Monitor v1.0*")
+        st.markdown("*HTTG Perfusion Monitor v2.0 (Multi-Agent)*")
 
     # 获取当前数据
     current_data = patient.get(selected_timepoint, {})
     baseline_data = patient.get("baseline", {})
 
-    # 计算风险等级
-    risk_level = calculate_risk_level(current_data)
+    # =================================================================
+    # Agent Pipeline模式
+    # =================================================================
+    agent_state = None
+    if agent_mode and AGENT_AVAILABLE:
+        @st.cache_resource
+        def init_agent_system():
+            bus = EventBus()
+            ps = PatientState()
+            monitor = MonitorAgent(bus, ps)
+            diagnosis = DiagnosisAgent(bus, ps)
+            strategy_ag = StrategyAgent(bus, ps)
+            knowledge = KnowledgeAgent(bus, ps)
+            comm = CommunicationAgent(bus, ps)
+            coordinator = CoordinatorAgent(
+                bus, ps,
+                monitor=monitor, diagnosis=diagnosis,
+                strategy=strategy_ag, knowledge=knowledge,
+                communication=comm
+            )
+            return coordinator
+
+        coordinator = init_agent_system()
+        agent_state = coordinator.run_pipeline(
+            measurements=current_data,
+            sample_id=selected_sample,
+            timestamp_min=int(selected_timepoint.replace("min", "").replace("baseline", "0"))
+        )
+        risk_level = agent_state.risk_level
+    else:
+        risk_level = calculate_risk_level(current_data)
 
     # Header
     render_header(selected_sample, selected_timepoint, risk_level)
@@ -646,14 +711,71 @@ def main():
             st.info("请在侧边栏选择要显示的指标")
 
     with col_right:
-        # 策略推荐
-        recommendations = get_strategy_recommendations(current_data, baseline_data)
-        render_strategy_panel(recommendations)
+        # 策略推荐 - Agent模式 vs 传统模式
+        if agent_state and agent_state.strategies:
+            st.markdown("### 🤖 Agent策略推荐")
+            for i, strat in enumerate(agent_state.strategies[:5], 1):
+                severity_emoji = {"critical": "🔴", "red_line": "🔴", "warning": "🟡"}.get(strat.severity, "🔵")
+                with st.expander(f"{severity_emoji} [{i}] {strat.indicator}: {strat.action}", expanded=(i<=2)):
+                    if strat.drug:
+                        st.markdown(f"**药物:** {strat.drug}")
+                    if strat.dose:
+                        st.markdown(f"**剂量:** {strat.dose}")
+                    if strat.reasoning_chain:
+                        st.markdown("**CoT推理链:**")
+                        for step in strat.reasoning_chain:
+                            st.markdown(f"- {step}")
+                    if strat.evidence:
+                        st.markdown("**证据:**")
+                        for ev in strat.evidence[:3]:
+                            st.caption(f"- {ev}")
+                    st.progress(strat.confidence, text=f"置信度: {strat.confidence:.0%}")
+
+            # 安全警告
+            if agent_state.drug_conflicts:
+                st.error("**药物冲突警告:**")
+                for c in agent_state.drug_conflicts:
+                    st.markdown(f"- {c}")
+            if agent_state.safety_warnings:
+                st.warning("**安全提示:**")
+                for w in agent_state.safety_warnings[:5]:
+                    st.markdown(f"- {w}")
+        else:
+            recommendations = get_strategy_recommendations(current_data, baseline_data)
+            render_strategy_panel(recommendations)
 
     st.markdown("---")
 
-    # 证据面板
-    render_evidence_panel()
+    # Agent处理日志 / 证据面板
+    if agent_state:
+        tab_evidence, tab_log, tab_agents = st.tabs(["📋 证据溯源", "📜 Agent处理日志", "🤖 Agent状态"])
+        with tab_evidence:
+            if agent_state.evidence_pool:
+                st.markdown(f"**共收集 {len(agent_state.evidence_pool)} 条证据**")
+                for ev in agent_state.evidence_pool[:10]:
+                    source = ev.get("source", "unknown")
+                    ev_type = ev.get("type", "")
+                    score = ev.get("evidence_score", 0)
+                    strength = ev.get("strength", "")
+                    with st.expander(f"[{source}] {ev_type} (score: {score:.2f}, {strength})"):
+                        st.json(ev.get("data", {}))
+            else:
+                st.info("无证据数据")
+        with tab_log:
+            for log_entry in agent_state.processing_log:
+                st.text(log_entry)
+        with tab_agents:
+            if agent_mode and AGENT_AVAILABLE:
+                agent_status = coordinator.get_agent_status()
+                for name, info in agent_status.items():
+                    status = info["status"]
+                    tool_count = info["tool_count"]
+                    emoji = "✅" if status != "unavailable" else "⚪"
+                    st.markdown(f"{emoji} **{name}**: {tool_count} tools")
+                    for t in info["tools"]:
+                        st.caption(f"  - `{t['name']}`: {t['description'][:50]}")
+    else:
+        render_evidence_panel()
 
     # Footer
     st.markdown("---")

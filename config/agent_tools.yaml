@@ -1,0 +1,277 @@
+# =============================================================================
+# Agent工具配置 - 每个Agent配备的工具及其能力
+# =============================================================================
+# 设计原则:
+#   1. 每个Agent只持有自己职责范围内的工具
+#   2. 工具来源于现有后端模块（零额外依赖）
+#   3. 工具分为"核心"(必须)和"增强"(可选)两类
+#   4. Agent不可用时自动降级（Coordinator处理）
+# =============================================================================
+
+version: "1.0.0"
+last_updated: "2025-01-29"
+
+# =============================================================================
+# Agent定义与工具分配
+# =============================================================================
+
+agents:
+
+  # ---------------------------------------------------------------------------
+  # Monitor Agent (感知层) - 实时阈值监测
+  # ---------------------------------------------------------------------------
+  monitor:
+    description: "实时感知层 - 检测异常、评估趋势、发出告警"
+    priority: "critical"   # 安全关键路径，必须同步执行
+    timeout: 2.0           # 秒
+    tools:
+      core:
+        - name: "threshold_checker"
+          source_module: "baseline_thresholds.BaselineThresholds"
+          method: "check_threshold"
+          description: "检查指标是否超越阈值（红线/警告/危急）"
+          input: "(indicator: str, value: float)"
+          output: "ThresholdResult{alert_level, deviation, trend}"
+
+        - name: "batch_alert_scan"
+          source_module: "baseline_thresholds.BaselineThresholds"
+          method: "check_all_indicators"
+          description: "批量扫描所有指标异常"
+          input: "(measurements: Dict[str, float])"
+          output: "List[ThresholdResult]"
+
+      enhanced:
+        - name: "baseline_comparator"
+          source_module: "baseline_evaluator.BaselineEvaluator"
+          method: "compare"
+          description: "与t=0 baseline对比，计算偏离度和趋势方向"
+          input: "(indicator: str, current_value: float)"
+          output: "BaselineComparison{delta, trend, severity}"
+
+        - name: "threshold_evaluator"
+          source_module: "threshold_manager.ThresholdManager"
+          method: "evaluate"
+          description: "accept/reject/warning/red_line分级评估"
+          input: "(indicator: str, value: float)"
+          output: "ThresholdEvaluation{result, confidence, message}"
+
+  # ---------------------------------------------------------------------------
+  # Diagnosis Agent (分析层) - 因果推理
+  # ---------------------------------------------------------------------------
+  diagnosis:
+    description: "分析层 - 因果推理、根因分析、指标分类"
+    priority: "high"
+    timeout: 5.0
+    tools:
+      core:
+        - name: "indicator_classifier"
+          source_module: "indicator_manager.IndicatorManager"
+          method: "get_indicator_type"
+          description: "判断指标类型: setpoint/readout/injury_marker"
+          input: "(indicator: str)"
+          output: "IndicatorType + 详细信息"
+
+        - name: "causal_tracer"
+          source_module: "indicator_manager.IndicatorManager"
+          method: "(custom)"
+          description: "追踪因果链: 异常Readout → 上游Setpoint → 调控路径"
+          input: "(indicator: str)"
+          output: "{causal_chain, upstream_setpoints}"
+
+      enhanced:
+        - name: "root_cause_analyzer"
+          source_module: "indicator_manager.IndicatorManager"
+          method: "(custom)"
+          description: "多指标联合分析，找出共同根因Setpoint"
+          input: "(alert_indicators: List[str])"
+          output: "{root_causes, shared_setpoints, consensus_matches}"
+
+        - name: "adjustment_recommender"
+          source_module: "indicator_manager.IndicatorManager"
+          method: "get_adjustment_recommendations"
+          description: "给出Setpoint调整方向建议"
+          input: "(indicator: str, value: float)"
+          output: "List[AdjustmentRecommendation]"
+
+  # ---------------------------------------------------------------------------
+  # Strategy Agent (决策层) - 策略推荐
+  # ---------------------------------------------------------------------------
+  strategy:
+    description: "决策层 - 证据驱动推荐、药物选择、CoT推理"
+    priority: "high"
+    timeout: 10.0
+    tools:
+      core:
+        - name: "evidence_recommender"
+          source_module: "evidence_strategy_engine.EvidenceStrategyEngine"
+          method: "generate_baseline_report"
+          description: "基于证据的策略推荐（含干预库+KG三元组+CoT推理链）"
+          input: "(sample_id: str, measurements: Dict)"
+          output: "BaselineStrategyReport{recommendations, risk_level}"
+
+        - name: "cot_reasoner"
+          source_module: "(built-in)"
+          method: "_build_cot_chain"
+          description: "5步CoT推理链: 观察→病理→机制→干预→预期"
+          input: "(indicator, value, direction, evidence, intervention)"
+          output: "List[str] (5步推理)"
+
+      enhanced:
+        - name: "strategy_mapper"
+          source_module: "strategy_mapper.StrategyMapper"
+          method: "evaluate_all"
+          description: "阈值→临床决策映射（含升级方案）"
+          input: "(measurements: Dict)"
+          output: "ClinicalDecision{status, actions, escalation}"
+
+        - name: "drug_lookup"
+          source_module: "evidence_strategy_engine.EvidenceStrategyEngine"
+          method: "INTERVENTION_LIBRARY"
+          description: "干预库药物查询（药物名/剂量/方案）"
+          input: "(indicator: str, direction: str)"
+          output: "{drug, dose, target, confidence, warnings}"
+
+        - name: "full_report_generator"
+          source_module: "baseline_strategy_recommender.BaselineStrategyRecommender"
+          method: "analyze_baseline"
+          description: "完整策略报告（含一致性检查）"
+          input: "(measurements: Dict, sample_id: str)"
+          output: "BaselineReport{summary, risk, recommendations}"
+
+  # ---------------------------------------------------------------------------
+  # Knowledge Agent (知识层) - 知识检索
+  # ---------------------------------------------------------------------------
+  knowledge:
+    description: "知识层 - 多源检索（Neo4j+本地KG+共识文献）+ 证据融合"
+    priority: "normal"       # 可异步执行，不阻塞主流程
+    timeout: 5.0
+    tools:
+      core:
+        - name: "consensus_search"
+          source_module: "(built-in)"
+          data_source: "extracted_knowledge.json"
+          description: "共识文献知识检索: 7篇心脏移植共识中搜索阈值/药物/因果"
+          input: "(keyword: str)"
+          output: "{results: [{type, indicator, data, source}]}"
+
+        - name: "evidence_scorer"
+          source_module: "(built-in)"
+          description: "证据评分: 按来源可信度和相关度排序"
+          input: "(evidence_list: List[Dict])"
+          output: "List[Dict] (scored & sorted)"
+          scoring_weights:
+            consensus: 0.9
+            neo4j: 0.8
+            local_kg: 0.7
+            config: 0.6
+            inferred: 0.4
+
+      enhanced:
+        - name: "neo4j_query"
+          source_module: "neo4j_connector.Neo4jKnowledgeGraph"
+          method: "query_decision_support"
+          description: "Neo4j图数据库查询: 因果/治疗/证据"
+          input: "(keyword: str)"
+          output: "{causes, treatments, consequences}"
+          requires: "NEO4J_PASSWORD环境变量"
+
+        - name: "local_kg_query"
+          source_module: "knowledge_graph.KnowledgeGraph"
+          method: "query_subject/query_predicate"
+          description: "本地三元组存储查询"
+          input: "(subject/predicate/object: str)"
+          output: "List[Triple]"
+
+  # ---------------------------------------------------------------------------
+  # Communication Agent (交互层) - 用户交互
+  # ---------------------------------------------------------------------------
+  communication:
+    description: "交互层 - UI渲染、语音播报、告警推送、问答"
+    priority: "normal"
+    timeout: 3.0
+    tools:
+      core:
+        - name: "alert_formatter"
+          source_module: "(built-in)"
+          description: "格式化告警: AlertEvent → 中文分级文本 (含emoji/颜色)"
+          input: "(alerts: List[AlertEvent])"
+          output: "List[{emoji, color, title, detail}]"
+
+        - name: "voice_broadcaster"
+          source_module: "(built-in)"
+          description: "TTS播报文本生成: 策略→中文语音文本(含药物剂量)"
+          input: "(state: PatientState)"
+          output: "List[str] (TTS文本)"
+
+      enhanced:
+        - name: "report_formatter"
+          source_module: "(built-in)"
+          description: "Markdown格式完整报告"
+          input: "(state: PatientState)"
+          output: "str (Markdown)"
+
+        - name: "qa_responder"
+          source_module: "(built-in)"
+          description: "临床问答: 从PatientState中搜索答案"
+          input: "(question: str)"
+          output: "str (答案)"
+
+  # ---------------------------------------------------------------------------
+  # Coordinator Agent (协调层) - 流程编排
+  # ---------------------------------------------------------------------------
+  coordinator:
+    description: "协调层 - 编排流程、安全校验、冲突仲裁、最终决策"
+    priority: "critical"
+    timeout: 30.0
+    tools:
+      core:
+        - name: "safety_checker"
+          source_module: "(built-in)"
+          description: "安全校验: 药物冲突+剂量上限+共识禁忌"
+          knowledge_base:
+            drug_conflicts: 5   # 条药物冲突规则
+            dose_limits: 5      # 条剂量上限(共识来源)
+            contraindications: 3 # 条共识禁忌(PVR>5/TPG>15/冷缺血>8h)
+
+        - name: "risk_calculator"
+          source_module: "(built-in)"
+          description: "综合风险: 基于异常数量+严重程度+关键指标加权"
+          critical_indicators: ["MAP", "CI", "K_A", "pH", "PVR", "PASP", "EF"]
+          output: "HIGH / MEDIUM / LOW / MINIMAL"
+
+      enhanced:
+        - name: "conflict_resolver"
+          source_module: "(built-in)"
+          description: "策略冲突仲裁: 按confidence排序+去重"
+
+        - name: "pipeline_orchestrator"
+          source_module: "(built-in)"
+          description: "5阶段流程编排: Monitor→Diagnosis→Knowledge→Strategy→Safety"
+          pipeline:
+            phase_1: "Monitor (同步, 2s超时)"
+            phase_2: "Diagnosis + Knowledge (可并行, 5s超时)"
+            phase_3: "Strategy (10s超时)"
+            phase_4: "Safety Check + Conflict Resolution (本地)"
+            phase_5: "Communication (展示)"
+
+# =============================================================================
+# Pipeline配置
+# =============================================================================
+pipeline:
+  sync_mode:
+    description: "同步模式（Streamlit环境）"
+    order: ["monitor", "diagnosis", "knowledge", "strategy", "coordinator", "communication"]
+    parallel_phases: []  # 同步模式无并行
+
+  async_mode:
+    description: "异步模式（支持并行）"
+    order: ["monitor", ["diagnosis", "knowledge"], "strategy", "coordinator", "communication"]
+    parallel_phases: [["diagnosis", "knowledge"]]  # Phase 2并行
+
+  degradation:
+    description: "降级策略 - Agent不可用时的回退"
+    monitor_unavailable: "跳过阈值检测，直接显示原始数据"
+    diagnosis_unavailable: "跳过因果分析，直接进入策略推荐"
+    knowledge_unavailable: "使用配置文件默认策略（不查Neo4j/共识）"
+    strategy_unavailable: "仅输出异常检测结果，不生成推荐"
+    communication_unavailable: "输出纯文本报告"
