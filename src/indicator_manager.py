@@ -115,7 +115,7 @@ class IndicatorManager:
         if config_path is None:
             config_path = Path(__file__).parent.parent / "config" / "indicator_classification.yaml"
 
-        self.config_path = config_path
+        self.config_path = Path(config_path) if isinstance(config_path, str) else config_path
         self.config: Dict[str, Any] = {}
         self.setpoints: Dict[str, SetpointIndicator] = {}
         self.readouts: Dict[str, ReadoutIndicator] = {}
