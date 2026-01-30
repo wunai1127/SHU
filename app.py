@@ -310,6 +310,9 @@ def render_status_cards(data: Dict[str, float], baseline: Dict[str, float]):
 
 def render_time_series(patient_data: Dict[str, Any], selected_indicators: List[str]):
     """渲染时序趋势图"""
+    if go is None or make_subplots is None:
+        st.warning("plotly 未安装，无法显示趋势图。请运行: pip install plotly==5.24.1")
+        return
     timepoints = ["baseline", "60min", "120min", "180min", "240min"]
     time_labels = ["Baseline\n(30min)", "60min", "120min", "180min", "240min"]
 
