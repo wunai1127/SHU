@@ -10,7 +10,10 @@
 
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
+try:
+    import plotly.graph_objects as go
+except ImportError:
+    go = None
 from pathlib import Path
 import sys
 

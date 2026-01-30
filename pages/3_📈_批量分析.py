@@ -5,9 +5,16 @@
 
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+try:
+    import plotly.express as px
+except ImportError:
+    px = None
+try:
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+except ImportError:
+    go = None
+    make_subplots = None
 import numpy as np
 
 st.set_page_config(page_title="批量分析", page_icon="📈", layout="wide")

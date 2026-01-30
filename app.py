@@ -15,9 +15,16 @@ HTTG 灌注监测系统 - Streamlit 前端
 
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+try:
+    import plotly.express as px
+except ImportError:
+    px = None
+try:
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+except ImportError:
+    go = None
+    make_subplots = None
 import json
 import yaml
 from pathlib import Path
@@ -311,7 +318,10 @@ def render_time_series(patient_data: Dict[str, Any], selected_indicators: List[s
                         subplot_titles=selected_indicators,
                         vertical_spacing=0.08)
 
-    colors = px.colors.qualitative.Set2
+    if px is not None:
+        colors = px.colors.qualitative.Set2
+    else:
+        colors = ["#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3", "#a6d854", "#ffd92f", "#e5c494", "#b3b3b3"]
 
     for i, indicator in enumerate(selected_indicators, 1):
         config = INDICATOR_CONFIG.get(indicator, {})
