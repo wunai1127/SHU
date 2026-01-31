@@ -820,6 +820,34 @@ function stopSTT() { if (_recognition) _recognition.stop(); }
 </script>
 """
 
+# TTS 辅助函数：每个 iframe 自带完整 speak 代码
+def _tts_html(text: str) -> str:
+    """生成自包含的 TTS iframe HTML"""
+    escaped = text.replace("\\", "\\\\").replace("`", "'").replace("</", "<\\/")
+    return f"""<script>
+(function() {{
+    const synth = window.parent.speechSynthesis || window.speechSynthesis;
+    if (!synth) {{ return; }}
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(`{escaped}`);
+    u.lang = 'zh-CN'; u.rate = 0.9; u.pitch = 1; u.volume = 1;
+    const voices = synth.getVoices();
+    const zh = voices.find(v => v.lang.includes('zh'));
+    if (zh) u.voice = zh;
+    synth.speak(u);
+}})();
+</script>"""
+
+
+def _tts_stop_html() -> str:
+    """生成停止 TTS 的 iframe HTML"""
+    return """<script>
+(function() {
+    const synth = window.parent.speechSynthesis || window.speechSynthesis;
+    if (synth) synth.cancel();
+})();
+</script>"""
+
 # =============================================================================
 # 主页面
 # =============================================================================
@@ -860,19 +888,17 @@ with col_ctrl:
     st.markdown("**播报控制**")
 
     if st.button("🔊 播报全部警报", use_container_width=True):
-        escaped = broadcast_text.replace("`", "'").replace("\\", "\\\\")
-        st.components.v1.html(f"<script>window.parent.postMessage('tts','*');speak(`{escaped}`);</script>", height=0)
+        st.components.v1.html(_tts_html(broadcast_text), height=0)
 
     if st.button("⏹️ 停止播报", use_container_width=True):
-        st.components.v1.html("<script>stopSpeaking();</script>", height=0)
+        st.components.v1.html(_tts_stop_html(), height=0)
 
     st.markdown("**单项播报**")
     for a in alerts:
         single = f"{a['indicator']}当前{a['value']}{a['unit']}，{a['message']}"
         icon = "🔴" if a["level"] == "critical" else "🟡"
         if st.button(f"{icon} {a['indicator']}", key=f"speak_{a['indicator']}", use_container_width=True):
-            escaped = single.replace("`", "'").replace("\\", "\\\\")
-            st.components.v1.html(f"<script>speak(`{escaped}`);</script>", height=0)
+            st.components.v1.html(_tts_html(single), height=0)
 
 # --- 2. 语音问答区域 ---
 st.markdown("---")
@@ -894,17 +920,11 @@ with col_input:
         if st.button("⏹️ 停止录音", use_container_width=True):
             st.components.v1.html("<script>stopSTT();</script>", height=0)
 
-    # 快捷问题 → 存到独立 key，text_area 读取
-    if "quick_question" not in st.session_state:
-        st.session_state["quick_question"] = ""
-
     # 文字输入
-    user_question = st.text_area(
+    typed_question = st.text_area(
         "请输入您的问题",
-        value=st.session_state.get("quick_question", ""),
         height=80,
         placeholder="例如：MAP低应该怎么处理？/ 他克莫司剂量是多少？/ 高钾血症的因果关系？",
-        key="qa_input",
     )
 
     # 示例问题快捷按钮
@@ -923,8 +943,10 @@ with col_input:
     for i, eq in enumerate(example_qs):
         with eq_cols[i % 4]:
             if st.button(eq, key=f"eq_{i}", use_container_width=True):
-                st.session_state["quick_question"] = eq
-                st.rerun()
+                st.session_state["_quick_q"] = eq
+
+    # 有效问题: 优先快捷按钮，否则用输入框
+    user_question = st.session_state.pop("_quick_q", None) or typed_question
 
 with col_output:
     st.markdown("**AI 回答**")
@@ -971,9 +993,8 @@ with col_output:
         # 播报回答按钮
         answer_plain = re.sub(r'\*\*|#{1,3}\s?|`', '', result["answer"])
         answer_plain = re.sub(r'\n+', '。', answer_plain)
-        escaped = answer_plain.replace("`", "'").replace("\\", "\\\\")
         if st.button("🔊 播报回答", key="speak_answer", use_container_width=True):
-            st.components.v1.html(f"<script>speak(`{escaped}`);</script>", height=0)
+            st.components.v1.html(_tts_html(answer_plain), height=0)
     else:
         st.markdown("""
 **支持的问题类型：**
