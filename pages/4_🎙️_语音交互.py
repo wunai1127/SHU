@@ -894,9 +894,14 @@ with col_input:
         if st.button("⏹️ 停止录音", use_container_width=True):
             st.components.v1.html("<script>stopSTT();</script>", height=0)
 
+    # 快捷问题 → 存到独立 key，text_area 读取
+    if "quick_question" not in st.session_state:
+        st.session_state["quick_question"] = ""
+
     # 文字输入
     user_question = st.text_area(
         "请输入您的问题",
+        value=st.session_state.get("quick_question", ""),
         height=80,
         placeholder="例如：MAP低应该怎么处理？/ 他克莫司剂量是多少？/ 高钾血症的因果关系？",
         key="qa_input",
@@ -918,7 +923,7 @@ with col_input:
     for i, eq in enumerate(example_qs):
         with eq_cols[i % 4]:
             if st.button(eq, key=f"eq_{i}", use_container_width=True):
-                st.session_state["qa_input"] = eq
+                st.session_state["quick_question"] = eq
                 st.rerun()
 
 with col_output:
