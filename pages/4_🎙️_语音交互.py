@@ -11,6 +11,7 @@
 5. 问答 → 知识库检索 + KG查询 + 共识文献 → 查验确认 → 回答
 """
 
+import os
 import streamlit as st
 import json
 import yaml
@@ -18,11 +19,56 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
 import sys
 import re
+import logging
+
+logger = logging.getLogger(__name__)
+
+# 加载环境变量
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent.parent / ".env")
+except ImportError:
+    pass
 
 # 添加src目录
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 st.set_page_config(page_title="语音交互", page_icon="🎙️", layout="wide")
+
+# =============================================================================
+# 初始化 Neo4j 和 LLM（复用全局单例）
+# =============================================================================
+@st.cache_resource
+def _init_neo4j():
+    try:
+        from neo4j_connector import Neo4jKnowledgeGraph
+        kg = Neo4jKnowledgeGraph()
+        return kg
+    except Exception:
+        return None
+
+
+@st.cache_resource
+def _init_llm():
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None
+    try:
+        from baseline_strategy_recommender import OpenAILLM
+        llm = OpenAILLM(
+            api_key=api_key,
+            model=os.getenv("LLM_MODEL", "deepseek-v3.2"),
+            base_url=os.getenv("OPENAI_BASE_URL"),
+        )
+        if llm.is_available():
+            return llm
+    except Exception:
+        pass
+    return None
+
+
+neo4j_kg = _init_neo4j()
+llm_client = _init_llm()
 
 # =============================================================================
 # 加载知识库
@@ -221,16 +267,18 @@ class KnowledgeQA:
     5. 生成带来源的回答
     """
 
-    def __init__(self, kb: Dict):
+    def __init__(self, kb: Dict, llm=None, neo4j_kg=None):
         self.kb = kb
         self.extracted = kb.get("extracted", {})
         self.thresholds = kb.get("thresholds", {})
         self.interventions = kb.get("interventions", {})
         self.classification = kb.get("classification", {})
+        self.llm = llm
+        self.neo4j_kg = neo4j_kg
 
     def answer(self, question: str) -> Dict[str, Any]:
         """
-        主入口: 问题 → 意图识别 → 多源检索 → 查验 → 回答
+        主入口: 问题 → 意图识别 → 多源检索 → KG查询 → 查验 → LLM增强 → 回答
 
         Returns:
             {"answer": str, "sources": list, "intent": dict, "verified": bool, "confidence": float}
@@ -238,7 +286,7 @@ class KnowledgeQA:
         # Step 1: 意图识别
         intent = IntentRecognizer.recognize(question)
 
-        # Step 2: 多源检索
+        # Step 2: 多源检索（知识库）
         evidences = []
         if intent["intent"] == "strategy_query":
             evidences = self._search_strategies(intent)
@@ -255,12 +303,23 @@ class KnowledgeQA:
         else:
             evidences = self._search_general(intent, question)
 
+        # Step 2.5: Neo4j知识图谱查询
+        kg_evidences = self._search_neo4j(intent, question)
+        evidences.extend(kg_evidences)
+
         # Step 3: 交叉查验
         verified, confidence = self._verify_evidences(evidences)
 
-        # Step 4: 生成回答
-        answer_text = self._build_answer(question, intent, evidences, verified)
-        sources = list(set(e.get("source", "未知来源") for e in evidences))
+        # Step 4: 生成回答（优先LLM增强，回退到规则生成）
+        llm_answer = self._llm_enhance(question, intent, evidences)
+        if llm_answer:
+            answer_text = llm_answer
+            sources = list(set(e.get("source", "未知来源") for e in evidences))
+            sources.append("LLM (DeepSeek)")
+            confidence = min(confidence + 0.1, 1.0)
+        else:
+            answer_text = self._build_answer(question, intent, evidences, verified)
+            sources = list(set(e.get("source", "未知来源") for e in evidences))
 
         return {
             "answer": answer_text,
@@ -484,6 +543,105 @@ class KnowledgeQA:
                 })
 
         return results
+
+    # ----- Neo4j 知识图谱查询 -----
+
+    def _search_neo4j(self, intent: Dict, question: str) -> List[Dict]:
+        """从Neo4j知识图谱检索证据"""
+        if not self.neo4j_kg:
+            return []
+
+        results = []
+        indicators = intent.get("indicators", [])
+        drugs = intent.get("drugs", [])
+
+        try:
+            # 按指标查询
+            for ind in indicators[:2]:
+                keywords = IntentRecognizer.INDICATOR_KEYWORDS.get(ind, [ind])
+                for kw in keywords[:1]:
+                    decision = self.neo4j_kg.query_decision_support(kw)
+                    for cause in decision.get("causes", [])[:3]:
+                        results.append({
+                            "type": "kg_cause",
+                            "indicator": ind,
+                            "data": cause,
+                            "source": f"Neo4j知识图谱 (病因)"
+                        })
+                    for treatment in decision.get("treatments", [])[:3]:
+                        results.append({
+                            "type": "kg_treatment",
+                            "indicator": ind,
+                            "data": treatment,
+                            "source": f"Neo4j知识图谱 (治疗)"
+                        })
+
+            # 按药物查询
+            for drug in drugs[:2]:
+                effects = self.neo4j_kg.find_medication_effects(drug)
+                for eff in effects[:3]:
+                    results.append({
+                        "type": "kg_drug_effect",
+                        "drug": drug,
+                        "data": eff,
+                        "source": f"Neo4j知识图谱 (药物效应)"
+                    })
+        except Exception as e:
+            logger.warning(f"Neo4j查询失败: {e}")
+
+        return results
+
+    # ----- LLM 增强回答 -----
+
+    def _llm_enhance(self, question: str, intent: Dict, evidences: List[Dict]) -> Optional[str]:
+        """使用LLM增强回答（基于检索到的证据）"""
+        if not self.llm:
+            return None
+
+        try:
+            # 构建证据上下文
+            evidence_text = ""
+            for i, ev in enumerate(evidences[:8], 1):
+                source = ev.get("source", "")
+                data = ev.get("data", {})
+                if isinstance(data, dict):
+                    data_str = json.dumps(data, ensure_ascii=False)[:200]
+                else:
+                    data_str = str(data)[:200]
+                evidence_text += f"[{i}] ({source}) {data_str}\n"
+
+            if not evidence_text:
+                evidence_text = "当前无检索到的直接证据。"
+
+            prompt = f"""你是心脏移植灌注监测的临床决策支持专家。请基于以下检索到的证据，回答用户的问题。
+
+## 要求
+1. 回答必须基于提供的证据，不要编造信息
+2. 引用证据来源，格式：[来源N]
+3. 给出具体的数值建议（如剂量、目标值）
+4. 如果证据不足，明确说明并给出保守建议
+5. 使用中文回答，简洁专业
+
+## 用户问题
+{question}
+
+## 意图识别
+- 类型: {intent.get('intent', 'general')}
+- 涉及指标: {', '.join(intent.get('indicators', []))}
+- 涉及药物: {', '.join(intent.get('drugs', []))}
+
+## 检索到的证据
+{evidence_text}
+
+## 回答"""
+
+            response = self.llm.generate(prompt, temperature=0.2, max_tokens=1000)
+            if response and len(response.strip()) > 10:
+                return response.strip()
+        except Exception as e:
+            logger.warning(f"LLM增强失败: {e}")
+
+        return None
 
     # ----- 查验 -----
 
@@ -853,12 +1011,25 @@ def _tts_stop_html() -> str:
 # =============================================================================
 st.title("🎙️ 语音交互助手")
 
+# 连接状态指示
+status_parts = []
+if neo4j_kg:
+    status_parts.append("Neo4j ✅")
+else:
+    status_parts.append("Neo4j ⚪")
+if llm_client:
+    model_name = os.getenv("LLM_MODEL", "LLM")
+    status_parts.append(f"{model_name} ✅")
+else:
+    status_parts.append("LLM ⚪")
+st.caption(f"🔌 {' | '.join(status_parts)}")
+
 # 注入JS
 st.components.v1.html(VOICE_JS, height=0)
 
 # 加载知识
 kb = load_knowledge_base()
-qa_engine = KnowledgeQA(kb)
+qa_engine = KnowledgeQA(kb, llm=llm_client, neo4j_kg=neo4j_kg)
 alerts = load_demo_alerts()
 
 # --- 1. 策略播报区域 ---
@@ -902,7 +1073,13 @@ with col_ctrl:
 
 # --- 2. 语音问答区域 ---
 st.markdown("---")
-st.subheader("🎤 智能问答（意图识别 + 知识图谱 + 共识知识库）")
+qa_sources = ["意图识别"]
+if neo4j_kg:
+    qa_sources.append("Neo4j知识图谱")
+if llm_client:
+    qa_sources.append(f"LLM({os.getenv('LLM_MODEL', 'AI')})")
+qa_sources.append("共识知识库")
+st.subheader(f"🎤 智能问答（{' + '.join(qa_sources)}）")
 
 col_input, col_output = st.columns([1, 1])
 
@@ -1005,7 +1182,7 @@ with col_output:
 - 🔗 **因果查询**: "高钾导致什么？" "为什么肺阻力升高？"
 - ⚠️ **风险查询**: "当前风险评估"
 
-系统会自动进行 **意图识别** → **多源检索**（知识图谱+共识文献+配置库）→ **交叉查验** → 输出回答。
+系统会自动进行 **意图识别** → **多源检索**（Neo4j知识图谱+共识文献+配置库）→ **交叉查验** → **LLM增强回答**。
         """)
 
 # --- 3. 自动播报设置 ---

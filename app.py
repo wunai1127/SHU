@@ -13,6 +13,7 @@ HTTG 灌注监测系统 - Streamlit 前端
 运行: streamlit run app.py
 """
 
+import os
 import streamlit as st
 import pandas as pd
 try:
@@ -31,6 +32,13 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple
 import sys
+
+# 加载环境变量
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent / ".env")
+except ImportError:
+    pass
 
 # 添加src目录到路径
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -57,6 +65,48 @@ try:
     AGENT_AVAILABLE = True
 except ImportError as e:
     AGENT_AVAILABLE = False
+
+# 导入Neo4j和LLM模块
+NEO4J_AVAILABLE = False
+LLM_AVAILABLE = False
+_neo4j_instance = None
+_llm_instance = None
+
+try:
+    from neo4j_connector import Neo4jKnowledgeGraph
+    from baseline_strategy_recommender import OpenAILLM
+except ImportError:
+    pass
+
+
+@st.cache_resource
+def init_neo4j():
+    """初始化Neo4j连接（全局单例）"""
+    try:
+        kg = Neo4jKnowledgeGraph()
+        return kg
+    except Exception as e:
+        return None
+
+
+@st.cache_resource
+def init_llm():
+    """初始化LLM客户端（全局单例）"""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None
+    try:
+        llm = OpenAILLM(
+            api_key=api_key,
+            model=os.getenv("LLM_MODEL", "deepseek-v3.2"),
+            base_url=os.getenv("OPENAI_BASE_URL"),
+        )
+        if llm.is_available():
+            return llm
+    except Exception:
+        pass
+    return None
+
 
 # =============================================================================
 # 页面配置
@@ -603,6 +653,12 @@ def main():
     config = load_config()
     demo_data = get_demo_data()
 
+    # 初始化Neo4j和LLM
+    neo4j_kg = init_neo4j()
+    llm_client = init_llm()
+    neo4j_connected = neo4j_kg is not None
+    llm_configured = llm_client is not None
+
     # 侧边栏
     with st.sidebar:
         st.markdown("## ⚙️ 控制面板")
@@ -642,8 +698,9 @@ def main():
         st.markdown("### 🔌 系统状态")
         st.markdown(f"- **后端模块:** {'✅ 已加载' if BACKEND_AVAILABLE else '⚠️ 部分加载'}")
         st.markdown(f"- **Agent系统:** {'✅ 可用' if AGENT_AVAILABLE else '⚪ 不可用'}")
-        st.markdown(f"- **Neo4j:** ⚪ 未连接")
-        st.markdown(f"- **LLM:** ⚪ 未配置")
+        st.markdown(f"- **Neo4j:** {'✅ 已连接' if neo4j_connected else '⚪ 未连接'}")
+        llm_model = os.getenv("LLM_MODEL", "N/A")
+        st.markdown(f"- **LLM:** {'✅ ' + llm_model if llm_configured else '⚪ 未配置'}")
 
         # Agent详情
         if agent_mode and AGENT_AVAILABLE:
@@ -676,7 +733,7 @@ def main():
     agent_state = None
     if agent_mode and AGENT_AVAILABLE:
         @st.cache_resource
-        def init_agent_system():
+        def init_agent_system(_neo4j=None, _llm=None):
             bus = EventBus()
             ps = PatientState()
             monitor = MonitorAgent(bus, ps)
@@ -684,6 +741,9 @@ def main():
             strategy_ag = StrategyAgent(bus, ps)
             knowledge = KnowledgeAgent(bus, ps)
             comm = CommunicationAgent(bus, ps)
+            # 将LLM和Neo4j传递给策略Agent
+            if _llm or _neo4j:
+                strategy_ag.set_llm_and_neo4j(llm=_llm, neo4j_connector=_neo4j)
             coordinator = CoordinatorAgent(
                 bus, ps,
                 monitor=monitor, diagnosis=diagnosis,
@@ -692,7 +752,7 @@ def main():
             )
             return coordinator
 
-        coordinator = init_agent_system()
+        coordinator = init_agent_system(_neo4j=neo4j_kg, _llm=llm_client)
         agent_state = coordinator.run_pipeline(
             measurements=current_data,
             sample_id=selected_sample,
@@ -796,9 +856,11 @@ def main():
     with col1:
         st.caption(f"🕐 Last Update: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     with col2:
-        st.caption("📡 Neo4j: ⚪ Disconnected")
+        neo4j_status = "✅ Connected" if neo4j_connected else "⚪ Disconnected"
+        st.caption(f"📡 Neo4j: {neo4j_status}")
     with col3:
-        st.caption("🤖 LLM: ⚪ Not Configured")
+        llm_status = f"✅ {os.getenv('LLM_MODEL', 'Active')}" if llm_configured else "⚪ Not Configured"
+        st.caption(f"🤖 LLM: {llm_status}")
 
 if __name__ == "__main__":
     main()

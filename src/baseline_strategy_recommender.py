@@ -137,18 +137,22 @@ class DummyLLM(LLMInterface):
 
 
 class OpenAILLM(LLMInterface):
-    """OpenAI LLM接口"""
+    """OpenAI LLM接口（支持OpenAI兼容的第三方API代理）"""
 
-    def __init__(self, api_key: str = None, model: str = "gpt-4"):
+    def __init__(self, api_key: str = None, model: str = None, base_url: str = None):
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
-        self.model = model
+        self.model = model or os.getenv("LLM_MODEL", "gpt-4")
+        self.base_url = base_url or os.getenv("OPENAI_BASE_URL")
         self._client = None
 
     def _get_client(self):
         if self._client is None:
             try:
                 from openai import OpenAI
-                self._client = OpenAI(api_key=self.api_key)
+                kwargs = {"api_key": self.api_key}
+                if self.base_url:
+                    kwargs["base_url"] = self.base_url
+                self._client = OpenAI(**kwargs)
             except ImportError:
                 logger.warning("openai package not installed")
         return self._client

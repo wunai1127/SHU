@@ -87,6 +87,14 @@ class StrategyAgent(BaseAgent):
             func=self._build_cot_chain
         ))
 
+    def set_llm_and_neo4j(self, llm=None, neo4j_connector=None):
+        """设置LLM和Neo4j连接器，传递给内部引擎"""
+        if self._bsr:
+            if llm:
+                self._bsr.set_llm(llm)
+            if neo4j_connector:
+                self._bsr.set_neo4j(neo4j_connector)
+
     # -------------------------------------------------------------------------
     # Tool implementations
     # -------------------------------------------------------------------------
