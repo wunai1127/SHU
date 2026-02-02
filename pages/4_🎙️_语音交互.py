@@ -280,9 +280,13 @@ class KnowledgeQA:
         self.llm = llm
         self.neo4j_kg = neo4j_kg
 
-    def answer(self, question: str) -> Dict[str, Any]:
+    def answer(self, question: str, phase: str = "intraop") -> Dict[str, Any]:
         """
         主入口: 问题 → 意图识别 → 多源检索 → KG查询 → 查验 → LLM增强 → 回答
+
+        Args:
+            question: 用户问题
+            phase: 手术阶段 "intraop"(术中) 或 "postop"(术后)
 
         Returns:
             {"answer": str, "sources": list, "intent": dict, "verified": bool, "confidence": float}
@@ -316,7 +320,7 @@ class KnowledgeQA:
 
         # Step 4: 生成回答（优先LLM增强，回退到规则生成）
         self._last_llm_error = None
-        llm_answer = self._llm_enhance(question, intent, evidences)
+        llm_answer = self._llm_enhance(question, intent, evidences, phase=phase)
         llm_error = getattr(self, '_last_llm_error', None)
 
         if llm_answer:
@@ -679,31 +683,28 @@ class KnowledgeQA:
                 break
         return "\n".join(lines) if lines else ""
 
-    def _llm_enhance(self, question: str, intent: Dict, evidences: List[Dict]) -> Optional[str]:
-        """使用LLM基于KG三元组+知识库证据生成手术场景播报回答"""
-        if not self.llm:
-            self._last_llm_error = "LLM未配置（检查OPENAI_API_KEY和OPENAI_BASE_URL环境变量）"
-            return None
-
-        self._last_llm_error = None
-        try:
-            # 分离KG三元组 和 知识库证据
-            kg_text = self._format_kg_triples(evidences)
-            kb_text = self._format_kb_evidences(evidences)
-
-            kg_section = kg_text if kg_text else "  （当前未从知识图谱中检索到相关三元组）"
-            kb_section = kb_text if kb_text else "  （当前未从知识库中检索到直接证据）"
-
-            indicators_str = ", ".join(intent.get("indicators", [])) or "未识别"
-            drugs_str = ", ".join(intent.get("drugs", [])) or "未涉及"
-
-            prompt = f"""# 角色
-你是HTTG（心脏移植术后灌注监测）的临床决策支持AI，部署在手术室/ICU的实时监护系统中。
-你的回答将直接用于术中/术后的语音播报，辅助灌注师和主刀医生做出即时决策。
+    def _build_intraop_prompt(self, question: str, intent: Dict,
+                              kg_section: str, kb_section: str,
+                              indicators_str: str, drugs_str: str) -> str:
+        """构建术中阶段的LLM提示词"""
+        return f"""# 角色
+你是HTTG（心脏移植术中灌注监测）的临床决策支持AI，部署在心脏移植手术室中。
+你的回答将直接用于**术中**的实时语音播报，辅助灌注师和主刀医生做出即时决策。
 
 # 场景
-心脏移植手术围术期，患者处于体外循环脱机后或ICU早期恢复阶段。
-灌注师/医生通过语音或文字提出临床问题，你需要结合知识图谱中的结构化因果关系和临床知识库给出精准回答。
+心脏移植手术 **术中阶段** — 患者正在经历以下可能的时期之一：
+- 体外循环（CPB）运转期
+- CPB脱机/撤离期（最关键时期）
+- 供心植入后早期评估期
+- 鱼精蛋白中和期
+
+**术中特征：**
+- 血流动力学不稳定是常态，需要即时干预
+- 血管活性药物（去甲肾上腺素、多巴胺、肾上腺素、米力农等）正在使用或随时可能启用
+- 供心缺血再灌注损伤可能导致急性右心衰竭
+- 电解质紊乱（尤其高钾）可能与心肌保护液/库存血相关
+- 需关注移植心脏的变时性/变力性功能（去神经心脏）
+- 出血/凝血问题（鱼精蛋白、血小板、纤维蛋白原）
 
 # 输入
 
@@ -723,26 +724,118 @@ class KnowledgeQA:
 
 # 输出要求
 
-请严格按以下结构输出，适合语音播报的简洁专业风格：
+请严格按以下结构输出，适合**术中紧急播报**的风格（简短、直接、可操作）：
 
-**【判断】** 一句话概括当前情况和严重程度
+**【判断】** 一句话概括当前情况和紧急程度
 
-**【机制】** 基于知识图谱三元组，用1-2句话说明病理生理机制链（引用三元组关系）
+**【机制】** 术中病理生理机制（结合供心状态、CPB影响、再灌注损伤等术中特有因素）
 
-**【处置建议】**
-- 首选方案：药物名称 + 具体剂量 + 给药途径 + 滴定目标
-- 替代方案（如有）：简述
-- 监测频率：需要关注的指标及频率
+**【即时处置】**
+- 首选方案：药物 + 剂量 + 给药途径 + 滴定目标（面向灌注师的具体操作指令）
+- 如需调整CPB参数：流量/压力目标
+- 紧急备选方案
 
-**【注意事项】** 药物相互作用、禁忌症、升级指征（1-2条关键点）
+**【术中警示】** 移植心脏特殊注意事项（去神经化影响、右心保护、出血风险等）
 
-**【证据等级】** 说明本回答基于哪些来源（KG三元组N条 / 共识知识库N条 / 临床经验）
+**【证据等级】** KG三元组N条 / 共识知识库N条 / 临床经验
 
 # 约束
-1. 剂量、阈值等数值必须来自提供的证据，不可编造
-2. 如果知识图谱和知识库证据不足，明确标注"基于临床经验补充"
-3. 输出面向手术室播报，避免冗长，每段不超过3句话
-4. 使用中文"""
+1. 剂量、阈值必须来自提供的证据，不可编造
+2. 证据不足时标注"基于临床经验补充"
+3. 术中播报风格：每段≤2句话，直接给出可操作指令
+4. 优先考虑术中安全性（出血、心律失常、右心衰竭）
+5. 使用中文"""
+
+    def _build_postop_prompt(self, question: str, intent: Dict,
+                             kg_section: str, kb_section: str,
+                             indicators_str: str, drugs_str: str) -> str:
+        """构建术后阶段的LLM提示词"""
+        return f"""# 角色
+你是HTTG（心脏移植术后监护）的临床决策支持AI，部署在ICU/心外科病房中。
+你的回答将用于**术后**的语音播报，辅助ICU医生和护理团队做出治疗决策。
+
+# 场景
+心脏移植手术 **术后阶段** — 患者处于以下可能的时期之一：
+- ICU早期恢复（术后0-72h）：血流动力学稳定化、呼吸机撤离
+- ICU中期（术后3-7天）：感染防控、肾功能保护、营养支持
+- 病房恢复期（术后1-4周）：免疫抑制方案调整、排斥反应监测
+- 出院前评估期：长期用药方案确定
+
+**术后特征：**
+- 免疫抑制是核心管理重点（他克莫司/环孢素谷浓度监测、MMF剂量、激素减量）
+- 急性排斥反应的早期识别（心内膜活检、BNP/troponin趋势）
+- 感染 vs 排斥的鉴别诊断
+- 肾功能保护（CNI肾毒性、容量管理）
+- 血压管理目标与术中不同（避免高血压→移植物血管病变）
+- 血糖管理（激素相关高血糖）
+- 心律监测（移植心脏窦房结功能恢复）
+
+# 输入
+
+## 用户问题
+{question}
+
+## 意图分析
+- 意图类型: {intent.get("intent", "general_qa")}
+- 涉及指标: {indicators_str}
+- 涉及药物: {drugs_str}
+
+## 知识图谱三元组（来自Neo4j，结构化因果/治疗关系）
+{kg_section}
+
+## 知识库证据（来自临床共识/干预策略/阈值配置）
+{kb_section}
+
+# 输出要求
+
+请严格按以下结构输出，适合**术后管理播报**的风格（系统、全面、兼顾长期预后）：
+
+**【判断】** 一句话概括当前问题及其对移植心脏的影响
+
+**【机制】** 术后病理生理机制（结合免疫抑制状态、移植心脏特征、感染/排斥鉴别等术后特有因素）
+
+**【处置方案】**
+- 即时处理：药物调整 + 剂量 + 监测指标
+- 免疫抑制相关：是否需要调整免疫抑制方案
+- 后续计划：检查/检验安排、随访频率
+
+**【长期注意】** 对移植预后的影响、需要警惕的远期并发症、患者教育要点
+
+**【证据等级】** KG三元组N条 / 共识知识库N条 / 临床经验
+
+# 约束
+1. 剂量、阈值必须来自提供的证据，不可编造
+2. 证据不足时标注"基于临床经验补充"
+3. 术后播报风格：每段≤3句话，兼顾即时处理和长期管理
+4. 所有建议需考虑免疫抑制背景下的特殊性
+5. 使用中文"""
+
+    def _llm_enhance(self, question: str, intent: Dict, evidences: List[Dict],
+                     phase: str = "intraop") -> Optional[str]:
+        """使用LLM基于KG三元组+知识库证据生成阶段特异性手术场景播报回答"""
+        if not self.llm:
+            self._last_llm_error = "LLM未配置（检查OPENAI_API_KEY和OPENAI_BASE_URL环境变量）"
+            return None
+
+        self._last_llm_error = None
+        try:
+            # 分离KG三元组 和 知识库证据
+            kg_text = self._format_kg_triples(evidences)
+            kb_text = self._format_kb_evidences(evidences)
+
+            kg_section = kg_text if kg_text else "  （当前未从知识图谱中检索到相关三元组）"
+            kb_section = kb_text if kb_text else "  （当前未从知识库中检索到直接证据）"
+
+            indicators_str = ", ".join(intent.get("indicators", [])) or "未识别"
+            drugs_str = ", ".join(intent.get("drugs", [])) or "未涉及"
+
+            # 根据阶段选择不同的提示词
+            if phase == "postop":
+                prompt = self._build_postop_prompt(
+                    question, intent, kg_section, kb_section, indicators_str, drugs_str)
+            else:
+                prompt = self._build_intraop_prompt(
+                    question, intent, kg_section, kb_section, indicators_str, drugs_str)
 
             response = self.llm.generate(prompt, temperature=0.15, max_tokens=1200)
             if response and len(response.strip()) > 20:
@@ -1159,6 +1252,234 @@ def _tts_stop_html() -> str:
 </script>"""
 
 # =============================================================================
+# 术中/术后 阶段配置
+# =============================================================================
+
+# 术中演示警报
+INTRAOP_ALERTS = [
+    {"level": "critical", "indicator": "MAP", "value": 45, "unit": "mmHg",
+     "target": "65-80", "message": "平均动脉压严重偏低，建议去甲肾上腺素 0.05~0.1 μg/kg/min"},
+    {"level": "critical", "indicator": "K+", "value": 6.2, "unit": "mmol/L",
+     "target": "3.5-5.0", "message": "高钾血症，可能与心肌保护液/库存血相关，建议胰岛素+葡萄糖"},
+    {"level": "warning", "indicator": "Lactate", "value": 4.5, "unit": "mmol/L",
+     "target": "<4.0", "message": "乳酸升高，组织灌注不足，检查CPB流量和血红蛋白"},
+    {"level": "warning", "indicator": "CI", "value": 2.0, "unit": "L/min/m²",
+     "target": "2.2-4.0", "message": "心指数偏低，供心功能不全？考虑多巴酚丁胺/米力农"},
+    {"level": "warning", "indicator": "PASP", "value": 48, "unit": "mmHg",
+     "target": "<35", "message": "肺动脉压升高，警惕急性右心衰竭，考虑吸入NO"},
+]
+
+# 术后演示警报
+POSTOP_ALERTS = [
+    {"level": "critical", "indicator": "MAP", "value": 105, "unit": "mmHg",
+     "target": "70-90", "message": "血压偏高，移植物血管病变风险，调整降压方案"},
+    {"level": "warning", "indicator": "Creatinine", "value": 2.1, "unit": "mg/dL",
+     "target": "<1.2", "message": "肌酐升高，注意CNI肾毒性，评估他克莫司谷浓度"},
+    {"level": "warning", "indicator": "K+", "value": 5.5, "unit": "mmol/L",
+     "target": "3.5-5.0", "message": "血钾偏高，可能与CNI或肾功能不全相关"},
+    {"level": "warning", "indicator": "HR", "value": 55, "unit": "bpm",
+     "target": "80-110", "message": "心率偏低，移植心脏窦房结功能恢复不全，评估是否需异丙肾上腺素"},
+    {"level": "warning", "indicator": "Lactate", "value": 3.2, "unit": "mmol/L",
+     "target": "<2.0", "message": "乳酸轻度升高，评估心功能及组织灌注"},
+]
+
+# 术中快捷提问
+INTRAOP_QUICK_QS = [
+    "MAP低应该怎么处理？",
+    "CPB脱机后心指数低怎么办？",
+    "高钾血症如何处理？",
+    "乳酸升高怎么办？",
+    "急性右心衰竭用什么药？",
+    "肺动脉压高的处理策略？",
+    "鱼精蛋白过敏怎么办？",
+    "当前风险评估",
+]
+
+# 术后快捷提问
+POSTOP_QUICK_QS = [
+    "术后血压高怎么处理？",
+    "他克莫司谷浓度多少合适？",
+    "肌酐升高怎么办？",
+    "术后心率慢怎么处理？",
+    "急性排斥反应怎么识别？",
+    "感染和排斥怎么鉴别？",
+    "激素减量方案？",
+    "当前风险评估",
+]
+
+
+# =============================================================================
+# 通用UI组件
+# =============================================================================
+
+def _render_alerts(alerts: List[Dict], phase_key: str):
+    """渲染警报区域"""
+    col_alerts, col_ctrl = st.columns([3, 1])
+
+    with col_alerts:
+        for alert in alerts:
+            level_cls = "alert-card-critical" if alert["level"] == "critical" else "alert-card-warning"
+            icon = "🔴" if alert["level"] == "critical" else "🟡"
+            st.markdown(f"""
+            <div class="{level_cls}">
+                <strong>{icon} {alert['indicator']}: {alert['value']} {alert['unit']}</strong>
+                （目标: {alert['target']}）<br/>
+                {alert['message']}
+            </div>
+            """, unsafe_allow_html=True)
+
+    with col_ctrl:
+        broadcast_text = "灌注监测警报播报。"
+        for a in alerts:
+            lvl = "危急" if a["level"] == "critical" else "警告"
+            broadcast_text += f"{lvl}，{a['indicator']}当前{a['value']}{a['unit']}，{a['message']}。"
+
+        st.markdown("**播报控制**")
+        if st.button("🔊 播报全部警报", use_container_width=True, key=f"broadcast_all_{phase_key}"):
+            st.components.v1.html(_tts_html(broadcast_text), height=0)
+        if st.button("⏹️ 停止播报", use_container_width=True, key=f"stop_broadcast_{phase_key}"):
+            st.components.v1.html(_tts_stop_html(), height=0)
+
+        st.markdown("**单项播报**")
+        for a in alerts:
+            single = f"{a['indicator']}当前{a['value']}{a['unit']}，{a['message']}"
+            icon = "🔴" if a["level"] == "critical" else "🟡"
+            if st.button(f"{icon} {a['indicator']}", key=f"speak_{a['indicator']}_{phase_key}",
+                         use_container_width=True):
+                st.components.v1.html(_tts_html(single), height=0)
+
+
+def _render_qa(qa_engine: KnowledgeQA, phase: str, phase_key: str, quick_qs: List[str]):
+    """渲染问答区域"""
+    phase_label = "术中" if phase == "intraop" else "术后"
+    input_label = f"请输入{phase_label}问题"
+
+    col_input, col_output = st.columns([1, 1])
+
+    with col_input:
+        st.markdown("**语音/文字输入**")
+
+        # 语音输入按钮
+        if st.button("🎤 点击语音输入", use_container_width=True, key=f"stt_{phase_key}"):
+            st.components.v1.html(_stt_html(input_label), height=0)
+            st.info("🎤 正在录音，请说话...（说完自动停止）")
+
+        # 文字输入
+        typed_question = st.text_area(
+            input_label,
+            height=80,
+            placeholder=f"例如：{quick_qs[0]} / {quick_qs[1]}",
+            key=f"text_input_{phase_key}",
+        )
+
+        # 快捷提问
+        st.markdown(f"**{phase_label}快捷提问：**")
+        eq_cols = st.columns(4)
+        for i, eq in enumerate(quick_qs):
+            with eq_cols[i % 4]:
+                if st.button(eq, key=f"eq_{phase_key}_{i}", use_container_width=True):
+                    st.session_state[f"_quick_q_{phase_key}"] = eq
+
+        # 有效问题
+        user_question = st.session_state.pop(f"_quick_q_{phase_key}", None) or typed_question
+
+    with col_output:
+        st.markdown("**AI 回答**")
+
+        if user_question and user_question.strip():
+            result = qa_engine.answer(user_question.strip(), phase=phase)
+
+            # 意图识别结果
+            intent = result["intent"]
+            intent_labels = {
+                "strategy_query": "🏥 策略查询",
+                "drug_query": "💊 药物查询",
+                "threshold_query": "📏 阈值查询",
+                "causal_query": "🔗 因果查询",
+                "indicator_query": "📊 指标查询",
+                "risk_query": "⚠️ 风险查询",
+                "general_qa": "💬 通用问答",
+            }
+            intent_label = intent_labels.get(intent["intent"], intent["intent"])
+
+            st.markdown(
+                f'<span class="intent-tag">{intent_label}</span> '
+                f'<span class="intent-tag">{phase_label}模式</span>',
+                unsafe_allow_html=True
+            )
+
+            if intent["indicators"]:
+                st.caption(f"识别指标: {', '.join(intent['indicators'])}")
+            if intent["drugs"]:
+                st.caption(f"识别药物: {', '.join(intent['drugs'])}")
+
+            # 查验状态
+            if result["verified"]:
+                st.markdown(f'<span class="verify-pass">✅ 多源查验通过 (置信度: {result["confidence"]:.0%}, {result["evidence_count"]}条证据)</span>', unsafe_allow_html=True)
+            else:
+                st.markdown(f'<span class="verify-fail">⚠️ 单源参考 (置信度: {result["confidence"]:.0%}, {result["evidence_count"]}条证据)</span>', unsafe_allow_html=True)
+
+            # 回答正文
+            st.markdown(result["answer"])
+
+            # LLM调用错误提示
+            llm_err = result.get("llm_error")
+            if llm_err:
+                st.warning(f"LLM未参与回答: {llm_err}")
+
+            # KG三元组证据溯源
+            kg_triples = [e for e in result.get("_evidences", [])
+                          if e.get("type") == "kg_triple" and e.get("triple")]
+            if kg_triples:
+                with st.expander(f"🔬 知识图谱证据溯源 ({len(kg_triples)} 条三元组)", expanded=False):
+                    for tr in kg_triples:
+                        s, p, o = tr["triple"]
+                        src = tr.get("source", "KG")
+                        st.markdown(
+                            f'<div style="font-family:monospace; padding:4px 10px; margin:3px 0; '
+                            f'border-left:3px solid #1890ff; background:var(--secondary-background-color,#f0f5ff); '
+                            f'border-radius:0 4px 4px 0;">'
+                            f'<span style="color:#1890ff;">{s}</span> '
+                            f'──<span style="color:#722ed1;">{p}</span>──▸ '
+                            f'<span style="color:#52c41a;">{o}</span> '
+                            f'<span style="opacity:0.5; font-size:0.8em;">({src})</span>'
+                            f'</div>',
+                            unsafe_allow_html=True
+                        )
+
+            # 来源标注
+            if result["sources"]:
+                st.markdown("**📚 信息来源：**")
+                src_html = " ".join(f'<span class="source-tag">{s}</span>' for s in result["sources"])
+                st.markdown(src_html, unsafe_allow_html=True)
+
+            # 播报回答
+            answer_plain = re.sub(r'\*\*|#{1,3}\s?|`', '', result["answer"])
+            answer_plain = re.sub(r'\n+', '。', answer_plain)
+            if st.button("🔊 播报回答", key=f"speak_answer_{phase_key}", use_container_width=True):
+                st.components.v1.html(_tts_html(answer_plain), height=0)
+        else:
+            if phase == "intraop":
+                st.markdown("""
+**术中支持的问题类型：**
+- 🏥 **急性处置**: "MAP低怎么处理？" "CPB脱机后怎么办？"
+- 💊 **血管活性药**: "去甲肾上腺素怎么用？" "米力农剂量？"
+- ⚡ **紧急情况**: "急性右心衰竭？" "高钾心律失常？"
+- 📏 **术中阈值**: "CPB脱机MAP目标？" "乳酸上限？"
+- 🔗 **机制查询**: "为什么肺阻力升高？"
+                """)
+            else:
+                st.markdown("""
+**术后支持的问题类型：**
+- 🏥 **术后管理**: "术后血压高怎么处理？" "心率慢怎么办？"
+- 💊 **免疫抑制**: "他克莫司剂量？" "激素减量方案？"
+- 🔬 **排斥/感染**: "急性排斥怎么识别？" "感染和排斥鉴别？"
+- 📏 **术后阈值**: "肌酐目标值？" "他克莫司谷浓度？"
+- 🔗 **因果查询**: "CNI肾毒性机制？"
+                """)
+
+
+# =============================================================================
 # 主页面
 # =============================================================================
 st.title("🎙️ 语音交互助手")
@@ -1186,180 +1507,61 @@ st.components.v1.html(VOICE_JS, height=0)
 # 加载知识
 kb = load_knowledge_base()
 qa_engine = KnowledgeQA(kb, llm=llm_client, neo4j_kg=neo4j_kg)
-alerts = load_demo_alerts()
 
-# --- 1. 策略播报区域 ---
+# =============================================================================
+# 术中 / 术后 Tab 切换
+# =============================================================================
 st.markdown("---")
-st.subheader("📢 实时策略播报")
 
-col_alerts, col_ctrl = st.columns([3, 1])
+tab_intraop, tab_postop = st.tabs(["🔴 术中监测 (Intraoperative)", "🟢 术后管理 (Postoperative)"])
 
-with col_alerts:
-    for alert in alerts:
-        level_cls = "alert-card-critical" if alert["level"] == "critical" else "alert-card-warning"
-        icon = "🔴" if alert["level"] == "critical" else "🟡"
-        st.markdown(f"""
-        <div class="{level_cls}">
-            <strong>{icon} {alert['indicator']}: {alert['value']} {alert['unit']}</strong>
-            （目标: {alert['target']}）<br/>
-            {alert['message']}
-        </div>
-        """, unsafe_allow_html=True)
-
-with col_ctrl:
-    broadcast_text = "灌注监测警报播报。"
-    for a in alerts:
-        lvl = "危急" if a["level"] == "critical" else "警告"
-        broadcast_text += f"{lvl}，{a['indicator']}当前{a['value']}{a['unit']}，{a['message']}。"
-
-    st.markdown("**播报控制**")
-
-    if st.button("🔊 播报全部警报", use_container_width=True):
-        st.components.v1.html(_tts_html(broadcast_text), height=0)
-
-    if st.button("⏹️ 停止播报", use_container_width=True):
-        st.components.v1.html(_tts_stop_html(), height=0)
-
-    st.markdown("**单项播报**")
-    for a in alerts:
-        single = f"{a['indicator']}当前{a['value']}{a['unit']}，{a['message']}"
-        icon = "🔴" if a["level"] == "critical" else "🟡"
-        if st.button(f"{icon} {a['indicator']}", key=f"speak_{a['indicator']}", use_container_width=True):
-            st.components.v1.html(_tts_html(single), height=0)
-
-# --- 2. 语音问答区域 ---
-st.markdown("---")
-qa_sources = ["意图识别"]
-if neo4j_kg:
-    qa_sources.append("Neo4j知识图谱")
-if llm_client:
-    qa_sources.append(f"LLM({os.getenv('LLM_MODEL', 'AI')})")
-qa_sources.append("共识知识库")
-st.subheader(f"🎤 智能问答（{' + '.join(qa_sources)}）")
-
-col_input, col_output = st.columns([1, 1])
-
-with col_input:
-    st.markdown("**语音/文字输入**")
-
-    # 语音输入按钮（自包含STT，解决iframe隔离）
-    if st.button("🎤 点击语音输入", use_container_width=True):
-        st.components.v1.html(_stt_html("请输入您的问题"), height=0)
-        st.info("🎤 正在录音，请说话...（说完自动停止）")
-
-    # 文字输入
-    typed_question = st.text_area(
-        "请输入您的问题",
-        height=80,
-        placeholder="例如：MAP低应该怎么处理？/ 他克莫司剂量是多少？/ 高钾血症的因果关系？",
+# ======================== 术中 Tab ========================
+with tab_intraop:
+    st.markdown(
+        '<div style="padding:8px 16px; border-radius:8px; '
+        'background:rgba(255,77,79,0.08); border-left:4px solid #ff4d4f; margin-bottom:1rem;">'
+        '<strong>术中模式</strong> — CPB脱机期/供心评估/血流动力学即时管理 · '
+        '提示词针对术中紧急场景优化，强调即时可操作性</div>',
+        unsafe_allow_html=True
     )
 
-    # 示例问题快捷按钮
-    st.markdown("**快捷提问：**")
-    example_qs = [
-        "MAP低应该怎么处理？",
-        "乳酸升高怎么办？",
-        "高钾血症如何处理？",
-        "心指数偏低用什么药？",
-        "他克莫司剂量是多少？",
-        "肺血管阻力高的阈值？",
-        "高钾导致什么后果？",
-        "当前风险评估",
-    ]
-    eq_cols = st.columns(4)
-    for i, eq in enumerate(example_qs):
-        with eq_cols[i % 4]:
-            if st.button(eq, key=f"eq_{i}", use_container_width=True):
-                st.session_state["_quick_q"] = eq
+    # 术中警报
+    st.subheader("📢 术中实时警报")
+    _render_alerts(INTRAOP_ALERTS, "intraop")
 
-    # 有效问题: 优先快捷按钮，否则用输入框
-    user_question = st.session_state.pop("_quick_q", None) or typed_question
+    # 术中问答
+    st.markdown("---")
+    qa_sources = ["意图识别"]
+    if neo4j_kg:
+        qa_sources.append("Neo4j-KG")
+    if llm_client:
+        qa_sources.append(f"LLM({os.getenv('LLM_MODEL', 'AI')})")
+    qa_sources.append("共识知识库")
+    st.subheader(f"🎤 术中智能问答（{' + '.join(qa_sources)}）")
+    _render_qa(qa_engine, phase="intraop", phase_key="intraop", quick_qs=INTRAOP_QUICK_QS)
 
-with col_output:
-    st.markdown("**AI 回答**")
+# ======================== 术后 Tab ========================
+with tab_postop:
+    st.markdown(
+        '<div style="padding:8px 16px; border-radius:8px; '
+        'background:rgba(82,196,26,0.08); border-left:4px solid #52c41a; margin-bottom:1rem;">'
+        '<strong>术后模式</strong> — ICU恢复/免疫抑制管理/排斥监测/长期预后 · '
+        '提示词针对术后综合管理优化，兼顾即时处理与远期预后</div>',
+        unsafe_allow_html=True
+    )
 
-    if user_question and user_question.strip():
-        # 执行问答
-        result = qa_engine.answer(user_question.strip())
+    # 术后警报
+    st.subheader("📢 术后监测警报")
+    _render_alerts(POSTOP_ALERTS, "postop")
 
-        # 意图识别结果
-        intent = result["intent"]
-        intent_labels = {
-            "strategy_query": "🏥 策略查询",
-            "drug_query": "💊 药物查询",
-            "threshold_query": "📏 阈值查询",
-            "causal_query": "🔗 因果查询",
-            "indicator_query": "📊 指标查询",
-            "risk_query": "⚠️ 风险查询",
-            "general_qa": "💬 通用问答",
-        }
-        intent_label = intent_labels.get(intent["intent"], intent["intent"])
+    # 术后问答
+    st.markdown("---")
+    st.subheader(f"🎤 术后智能问答（{' + '.join(qa_sources)}）")
+    _render_qa(qa_engine, phase="postop", phase_key="postop", quick_qs=POSTOP_QUICK_QS)
 
-        st.markdown(f'<span class="intent-tag">{intent_label}</span>', unsafe_allow_html=True)
-
-        if intent["indicators"]:
-            st.caption(f"识别指标: {', '.join(intent['indicators'])}")
-        if intent["drugs"]:
-            st.caption(f"识别药物: {', '.join(intent['drugs'])}")
-
-        # 查验状态
-        if result["verified"]:
-            st.markdown(f'<span class="verify-pass">✅ 多源查验通过 (置信度: {result["confidence"]:.0%}, {result["evidence_count"]}条证据)</span>', unsafe_allow_html=True)
-        else:
-            st.markdown(f'<span class="verify-fail">⚠️ 单源参考 (置信度: {result["confidence"]:.0%}, {result["evidence_count"]}条证据)</span>', unsafe_allow_html=True)
-
-        # 回答正文
-        st.markdown(result["answer"])
-
-        # LLM调用错误提示
-        llm_err = result.get("llm_error")
-        if llm_err:
-            st.warning(f"LLM未参与回答: {llm_err}")
-
-        # KG三元组证据溯源
-        kg_triples = [e for e in result.get("_evidences", []) if e.get("type") == "kg_triple" and e.get("triple")]
-        if kg_triples:
-            with st.expander(f"🔬 知识图谱证据溯源 ({len(kg_triples)} 条三元组)", expanded=False):
-                for tr in kg_triples:
-                    s, p, o = tr["triple"]
-                    src = tr.get("source", "KG")
-                    st.markdown(
-                        f'<div style="font-family:monospace; padding:4px 10px; margin:3px 0; '
-                        f'border-left:3px solid #1890ff; background:var(--secondary-background-color,#f0f5ff); '
-                        f'border-radius:0 4px 4px 0;">'
-                        f'<span style="color:#1890ff;">{s}</span> '
-                        f'──<span style="color:#722ed1;">{p}</span>──▸ '
-                        f'<span style="color:#52c41a;">{o}</span> '
-                        f'<span style="opacity:0.5; font-size:0.8em;">({src})</span>'
-                        f'</div>',
-                        unsafe_allow_html=True
-                    )
-
-        # 来源标注
-        if result["sources"]:
-            st.markdown("**📚 信息来源：**")
-            src_html = " ".join(f'<span class="source-tag">{s}</span>' for s in result["sources"])
-            st.markdown(src_html, unsafe_allow_html=True)
-
-        # 播报回答按钮
-        answer_plain = re.sub(r'\*\*|#{1,3}\s?|`', '', result["answer"])
-        answer_plain = re.sub(r'\n+', '。', answer_plain)
-        if st.button("🔊 播报回答", key="speak_answer", use_container_width=True):
-            st.components.v1.html(_tts_html(answer_plain), height=0)
-    else:
-        st.markdown("""
-**支持的问题类型：**
-- 📊 **指标查询**: "MAP是什么？" "肌酐正常范围？"
-- 🏥 **策略查询**: "MAP低怎么处理？" "乳酸高怎么办？"
-- 💊 **药物查询**: "他克莫司剂量？" "米力农怎么用？"
-- 📏 **阈值查询**: "PVR移植禁忌阈值？"
-- 🔗 **因果查询**: "高钾导致什么？" "为什么肺阻力升高？"
-- ⚠️ **风险查询**: "当前风险评估"
-
-系统会自动进行 **意图识别** → **多源检索**（Neo4j知识图谱+共识文献+配置库）→ **交叉查验** → **LLM增强回答**。
-        """)
-
-# --- 3. 自动播报设置 ---
+# =============================================================================
+# 自动播报设置（通用）
+# =============================================================================
 st.markdown("---")
 st.subheader("⚙️ 自动播报设置")
 
@@ -1374,12 +1576,18 @@ with col_s3:
 if auto_broadcast:
     st.info("🔔 自动播报已启用。当检测到选定级别的异常时，系统将自动语音播报。")
 
-# --- 4. 使用说明 ---
+# --- 使用说明 ---
 st.markdown("---")
 with st.expander("📖 使用说明"):
     st.markdown("""
+### 术中/术后模式切换
+- 页面顶部 **🔴 术中监测** / **🟢 术后管理** 标签页可切换阶段
+- 两个阶段使用 **不同的LLM提示词**，针对各自的临床重点生成回答
+- 术中强调：CPB管理、血管活性药即时调整、急性右心衰竭、出血凝血
+- 术后强调：免疫抑制方案、排斥/感染鉴别、肾功能保护、长期预后
+
 ### 语音播报
-- 点击 **🔊 播报全部警报** 播报当前所有异常
+- 点击 **🔊 播报全部警报** 播报当前阶段所有异常
 - 点击单个指标按钮播报特定警报
 - 点击 **⏹️ 停止播报** 随时停止
 
@@ -1390,9 +1598,9 @@ with st.expander("📖 使用说明"):
 
 ### 智能问答流程
 1. **意图识别**: 自动判断问题类型（策略/药物/阈值/因果/风险）
-2. **多源检索**: 从共识知识库、干预策略库、阈值配置等多源获取信息
-3. **交叉查验**: 检查多源证据一致性，标注置信度
-4. **生成回答**: 结构化回答 + 来源标注
+2. **多源检索**: Neo4j知识图谱 + 共识文献 + 配置库
+3. **交叉查验**: 多源证据一致性检查
+4. **阶段特异性LLM增强**: 根据术中/术后使用不同提示词生成回答
 
 ### 浏览器要求
 - 推荐 **Chrome** 浏览器
