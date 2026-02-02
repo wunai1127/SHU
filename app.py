@@ -216,34 +216,127 @@ def load_patient_data():
     return None
 
 def get_demo_data() -> Dict[str, Any]:
-    """生成演示数据"""
+    """生成演示数据（含灌注调控参数 + 功能观测指标）"""
     return {
         "HTX-28": {
-            "baseline": {"MAP": 36, "Lactate": 2.8, "SvO2": 82, "K_A": 4.2, "CI": 2.1, "CvO2": 8.5, "HR": 88, "pH": 7.38},
-            "60min": {"MAP": 45, "Lactate": 3.5, "SvO2": 78, "K_A": 4.8, "CI": 2.3, "CvO2": 9.2, "HR": 92, "pH": 7.35},
-            "120min": {"MAP": 50, "Lactate": 3.2, "SvO2": 75, "K_A": 4.5, "CI": 2.5, "CvO2": 10.1, "HR": 85, "pH": 7.37},
-            "180min": {"MAP": 58, "Lactate": 2.5, "SvO2": 72, "K_A": 4.3, "CI": 2.7, "CvO2": 11.5, "HR": 82, "pH": 7.40},
-            "240min": {"MAP": 65, "Lactate": 2.0, "SvO2": 70, "K_A": 4.1, "CI": 2.9, "CvO2": 12.8, "HR": 78, "pH": 7.42},
+            "baseline": {
+                # 灌注调控参数 (Setpoints)
+                "Flow": 4.5, "Temperature": 22.0, "AoDP": 40, "PaO2": 150,
+                "Hemoglobin": 45, "PacingRate": 0, "Dobutamine": 0, "Insulin": 2.0,
+                # 功能观测指标 (Readouts)
+                "Lactate": 2.8, "pH": 7.28, "K_A": 4.2, "EF": 0, "CI": 0,
+                "SvO2": 82, "CvO2": 8.5, "MVO2": 6.5, "dPdt_max": 0,
+                # 移植评估
+                "MAP": 36, "HR": 0,
+            },
+            "60min": {
+                "Flow": 4.5, "Temperature": 28.0, "AoDP": 38, "PaO2": 160,
+                "Hemoglobin": 44, "PacingRate": 0, "Dobutamine": 0, "Insulin": 2.0,
+                "Lactate": 3.5, "pH": 7.30, "K_A": 4.8, "EF": 15, "CI": 0,
+                "SvO2": 78, "CvO2": 9.2, "MVO2": 7.2, "dPdt_max": 800,
+                "MAP": 45, "HR": 0,
+            },
+            "120min": {
+                "Flow": 4.4, "Temperature": 34.0, "AoDP": 42, "PaO2": 155,
+                "Hemoglobin": 43, "PacingRate": 105, "Dobutamine": 4.0, "Insulin": 2.25,
+                "Lactate": 3.2, "pH": 7.32, "K_A": 4.5, "EF": 22, "CI": 2.3,
+                "SvO2": 75, "CvO2": 10.1, "MVO2": 9.5, "dPdt_max": 1350,
+                "MAP": 50, "HR": 85,
+            },
+            "180min": {
+                "Flow": 4.3, "Temperature": 36.5, "AoDP": 40, "PaO2": 145,
+                "Hemoglobin": 42, "PacingRate": 105, "Dobutamine": 4.0, "Insulin": 2.25,
+                "Lactate": 2.5, "pH": 7.33, "K_A": 4.3, "EF": 28, "CI": 2.7,
+                "SvO2": 72, "CvO2": 11.5, "MVO2": 10.8, "dPdt_max": 1450,
+                "MAP": 58, "HR": 82,
+            },
+            "240min": {
+                "Flow": 4.2, "Temperature": 37.0, "AoDP": 40, "PaO2": 140,
+                "Hemoglobin": 42, "PacingRate": 105, "Dobutamine": 3.0, "Insulin": 2.0,
+                "Lactate": 2.0, "pH": 7.35, "K_A": 4.1, "EF": 35, "CI": 2.9,
+                "SvO2": 70, "CvO2": 12.8, "MVO2": 12.0, "dPdt_max": 1500,
+                "MAP": 65, "HR": 78,
+            },
             "outcome": "success",
             "age": 45,
             "gender": "M"
         },
         "HTX-36": {
-            "baseline": {"MAP": 45, "Lactate": 3.9, "SvO2": 85, "K_A": 5.8, "CI": 1.9, "CvO2": 7.5, "HR": 105, "pH": 7.28},
-            "60min": {"MAP": 51, "Lactate": 4.9, "SvO2": 82, "K_A": 6.2, "CI": 2.0, "CvO2": 8.0, "HR": 110, "pH": 7.25},
-            "120min": {"MAP": 51, "Lactate": 4.1, "SvO2": 80, "K_A": 5.9, "CI": 2.1, "CvO2": 8.5, "HR": 108, "pH": 7.27},
-            "180min": {"MAP": 48, "Lactate": 5.2, "SvO2": 78, "K_A": 6.5, "CI": 1.8, "CvO2": 7.8, "HR": 115, "pH": 7.22},
-            "240min": {"MAP": 42, "Lactate": 6.8, "SvO2": 75, "K_A": 7.1, "CI": 1.5, "CvO2": 6.5, "HR": 125, "pH": 7.18},
+            "baseline": {
+                "Flow": 4.6, "Temperature": 22.0, "AoDP": 38, "PaO2": 140,
+                "Hemoglobin": 38, "PacingRate": 0, "Dobutamine": 0, "Insulin": 2.5,
+                "Lactate": 3.9, "pH": 7.22, "K_A": 5.8, "EF": 0, "CI": 0,
+                "SvO2": 85, "CvO2": 7.5, "MVO2": 5.8, "dPdt_max": 0,
+                "MAP": 45, "HR": 0,
+            },
+            "60min": {
+                "Flow": 4.7, "Temperature": 27.0, "AoDP": 35, "PaO2": 135,
+                "Hemoglobin": 36, "PacingRate": 0, "Dobutamine": 0, "Insulin": 2.5,
+                "Lactate": 4.9, "pH": 7.20, "K_A": 6.2, "EF": 12, "CI": 0,
+                "SvO2": 82, "CvO2": 8.0, "MVO2": 6.2, "dPdt_max": 650,
+                "MAP": 51, "HR": 0,
+            },
+            "120min": {
+                "Flow": 4.8, "Temperature": 32.0, "AoDP": 36, "PaO2": 130,
+                "Hemoglobin": 35, "PacingRate": 105, "Dobutamine": 5.0, "Insulin": 3.0,
+                "Lactate": 4.1, "pH": 7.22, "K_A": 5.9, "EF": 14, "CI": 2.0,
+                "SvO2": 80, "CvO2": 8.5, "MVO2": 7.0, "dPdt_max": 950,
+                "MAP": 51, "HR": 108,
+            },
+            "180min": {
+                "Flow": 4.9, "Temperature": 35.0, "AoDP": 34, "PaO2": 125,
+                "Hemoglobin": 34, "PacingRate": 105, "Dobutamine": 6.0, "Insulin": 3.0,
+                "Lactate": 5.2, "pH": 7.19, "K_A": 6.5, "EF": 11, "CI": 1.8,
+                "SvO2": 78, "CvO2": 7.8, "MVO2": 6.0, "dPdt_max": 850,
+                "MAP": 48, "HR": 115,
+            },
+            "240min": {
+                "Flow": 5.0, "Temperature": 36.5, "AoDP": 32, "PaO2": 120,
+                "Hemoglobin": 33, "PacingRate": 110, "Dobutamine": 6.0, "Insulin": 3.0,
+                "Lactate": 6.8, "pH": 7.15, "K_A": 7.1, "EF": 8, "CI": 1.5,
+                "SvO2": 75, "CvO2": 6.5, "MVO2": 4.8, "dPdt_max": 700,
+                "MAP": 42, "HR": 125,
+            },
             "outcome": "failure",
             "age": 58,
             "gender": "M"
         },
         "HTX-42": {
-            "baseline": {"MAP": 52, "Lactate": 2.5, "SvO2": 78, "K_A": 4.0, "CI": 2.4, "CvO2": 10.5, "HR": 82, "pH": 7.40},
-            "60min": {"MAP": 58, "Lactate": 2.2, "SvO2": 75, "K_A": 4.2, "CI": 2.6, "CvO2": 11.2, "HR": 78, "pH": 7.42},
-            "120min": {"MAP": 65, "Lactate": 1.8, "SvO2": 72, "K_A": 4.1, "CI": 2.8, "CvO2": 12.0, "HR": 75, "pH": 7.43},
-            "180min": {"MAP": 70, "Lactate": 1.5, "SvO2": 70, "K_A": 4.0, "CI": 3.0, "CvO2": 13.2, "HR": 72, "pH": 7.44},
-            "240min": {"MAP": 72, "Lactate": 1.2, "SvO2": 68, "K_A": 3.9, "CI": 3.2, "CvO2": 14.0, "HR": 70, "pH": 7.45},
+            "baseline": {
+                "Flow": 4.4, "Temperature": 22.0, "AoDP": 42, "PaO2": 165,
+                "Hemoglobin": 48, "PacingRate": 0, "Dobutamine": 0, "Insulin": 1.5,
+                "Lactate": 2.5, "pH": 7.30, "K_A": 4.0, "EF": 0, "CI": 0,
+                "SvO2": 78, "CvO2": 10.5, "MVO2": 7.5, "dPdt_max": 0,
+                "MAP": 52, "HR": 0,
+            },
+            "60min": {
+                "Flow": 4.3, "Temperature": 30.0, "AoDP": 41, "PaO2": 160,
+                "Hemoglobin": 47, "PacingRate": 0, "Dobutamine": 0, "Insulin": 1.5,
+                "Lactate": 2.2, "pH": 7.32, "K_A": 4.2, "EF": 20, "CI": 0,
+                "SvO2": 75, "CvO2": 11.2, "MVO2": 8.5, "dPdt_max": 1100,
+                "MAP": 58, "HR": 0,
+            },
+            "120min": {
+                "Flow": 4.3, "Temperature": 35.5, "AoDP": 42, "PaO2": 155,
+                "Hemoglobin": 46, "PacingRate": 105, "Dobutamine": 3.0, "Insulin": 2.0,
+                "Lactate": 1.8, "pH": 7.34, "K_A": 4.1, "EF": 30, "CI": 2.8,
+                "SvO2": 72, "CvO2": 12.0, "MVO2": 10.5, "dPdt_max": 1500,
+                "MAP": 65, "HR": 75,
+            },
+            "180min": {
+                "Flow": 4.2, "Temperature": 37.0, "AoDP": 41, "PaO2": 150,
+                "Hemoglobin": 45, "PacingRate": 105, "Dobutamine": 3.0, "Insulin": 2.0,
+                "Lactate": 1.5, "pH": 7.35, "K_A": 4.0, "EF": 38, "CI": 3.0,
+                "SvO2": 70, "CvO2": 13.2, "MVO2": 12.0, "dPdt_max": 1580,
+                "MAP": 70, "HR": 72,
+            },
+            "240min": {
+                "Flow": 4.2, "Temperature": 37.0, "AoDP": 40, "PaO2": 145,
+                "Hemoglobin": 45, "PacingRate": 105, "Dobutamine": 2.0, "Insulin": 1.5,
+                "Lactate": 1.2, "pH": 7.35, "K_A": 3.9, "EF": 42, "CI": 3.2,
+                "SvO2": 68, "CvO2": 14.0, "MVO2": 13.5, "dPdt_max": 1620,
+                "MAP": 72, "HR": 70,
+            },
             "outcome": "success",
             "age": 38,
             "gender": "F"
@@ -253,25 +346,89 @@ def get_demo_data() -> Dict[str, Any]:
 # =============================================================================
 # 指标配置
 # =============================================================================
-INDICATOR_CONFIG = {
-    # 原有灌注指标
-    "MAP": {"name": "平均动脉压", "unit": "mmHg", "target": (65, 90), "red_line": 50, "critical": 60},
+
+# ------ 灌注调控参数 (Setpoints) — 灌注师可直接调控 ------
+SETPOINT_CONFIG = {
+    "Flow": {
+        "name": "灌注流量", "unit": "L/min", "target": (4.2, 4.8),
+        "red_line": 3.5, "critical": 3.8,
+        "control": "离心泵/滚压泵转速", "device": "CPB泵",
+        "priority": 1,
+    },
+    "Temperature": {
+        "name": "灌注温度", "unit": "°C", "target": (34, 37),
+        "red_line": None, "critical": None,
+        "control": "热交换器", "device": "变温水箱",
+        "priority": 2,
+    },
+    "AoDP": {
+        "name": "灌注压(AoDP)", "unit": "mmHg", "target": (35, 45),
+        "red_line": 25, "critical": 30,
+        "control": "离心泵转速/反馈控制", "device": "离心泵",
+        "priority": 3,
+    },
+    "PaO2": {
+        "name": "动脉氧分压", "unit": "mmHg", "target": (100, 200),
+        "red_line": 60, "critical": 80,
+        "control": "氧合器FiO2/扫气", "device": "氧合器",
+        "priority": 4,
+    },
+    "Hemoglobin": {
+        "name": "血红蛋白", "unit": "g/L", "target": (40, 50),
+        "red_line": 30, "critical": 35,
+        "control": "RBC添加/稀释", "device": "储血罐",
+        "priority": 5,
+    },
+    "PacingRate": {
+        "name": "起搏心率", "unit": "bpm", "target": (100, 110),
+        "red_line": None, "critical": None,
+        "control": "起搏器设定", "device": "起搏器",
+        "priority": 6,
+    },
+    "Dobutamine": {
+        "name": "多巴酚丁胺", "unit": "μg/min", "target": (2, 6),
+        "red_line": None, "critical": None,
+        "control": "注射泵速率", "device": "注射泵",
+        "priority": 7,
+    },
+    "Insulin": {
+        "name": "胰岛素", "unit": "U/h", "target": (1.5, 3.0),
+        "red_line": None, "critical": None,
+        "control": "注射泵速率", "device": "注射泵",
+        "priority": 8,
+    },
+}
+
+# ------ 功能观测指标 (Readouts) — 间接反映灌注质量 ------
+READOUT_CONFIG = {
     "Lactate": {"name": "乳酸", "unit": "mmol/L", "target": (0, 4.0), "red_line": 6.0, "critical": 4.0, "higher_is_worse": True},
-    "SvO2": {"name": "混合静脉血氧饱和度", "unit": "%", "target": (65, 80), "red_line": None, "critical": None},
+    "pH": {"name": "动脉pH", "unit": "", "target": (7.25, 7.35), "red_line": 7.15, "critical": 7.20},
     "K_A": {"name": "动脉血钾", "unit": "mmol/L", "target": (3.5, 5.0), "red_line": 6.0, "critical": 5.5, "higher_is_worse": True},
+    "EF": {"name": "射血分数", "unit": "%", "target": (18, 60), "red_line": 10, "critical": 18},
     "CI": {"name": "心指数", "unit": "L/min/m²", "target": (2.2, 4.0), "red_line": 1.8, "critical": 2.0},
+    "SvO2": {"name": "混合静脉血氧饱和度", "unit": "%", "target": (65, 80), "red_line": 50, "critical": 60},
     "CvO2": {"name": "静脉血氧含量", "unit": "mL/dL", "target": (12, 16), "red_line": 8, "critical": 10},
+    "MVO2": {"name": "心肌氧耗", "unit": "mLO₂/min/100g", "target": (8.8, 20), "red_line": 5, "critical": 8.8},
+    "dPdt_max": {"name": "最大dP/dt", "unit": "mmHg/s", "target": (1200, 1800), "red_line": 800, "critical": 1000},
+}
+
+# ------ 移植评估/术后指标 ------
+TRANSPLANT_CONFIG = {
+    "MAP": {"name": "平均动脉压", "unit": "mmHg", "target": (65, 90), "red_line": 50, "critical": 60},
     "HR": {"name": "心率", "unit": "bpm", "target": (60, 100), "red_line": None, "critical": None},
-    "pH": {"name": "动脉pH", "unit": "", "target": (7.35, 7.45), "red_line": 7.20, "critical": 7.30},
-    # 移植共识新增指标
     "PVR": {"name": "肺血管阻力", "unit": "Wood", "target": (0.5, 2.5), "red_line": 5.0, "critical": 4.0, "higher_is_worse": True},
     "TPG": {"name": "跨肺压差", "unit": "mmHg", "target": (5, 12), "red_line": 15, "critical": 14, "higher_is_worse": True},
     "PASP": {"name": "肺动脉收缩压", "unit": "mmHg", "target": (15, 40), "red_line": 70, "critical": 50, "higher_is_worse": True},
     "Creatinine": {"name": "肌酐", "unit": "mg/dL", "target": (0.5, 1.5), "red_line": 2.0, "critical": 1.7, "higher_is_worse": True},
     "GFR": {"name": "肾小球滤过率", "unit": "mL/min", "target": (60, 120), "red_line": 30, "critical": 60},
-    "EF": {"name": "射血分数", "unit": "%", "target": (50, 70), "red_line": 30, "critical": 50},
     "Bilirubin": {"name": "胆红素", "unit": "mg/dL", "target": (0.1, 1.2), "red_line": 2.5, "critical": 2.0, "higher_is_worse": True},
 }
+
+# 合并所有指标配置（兼容旧代码）
+INDICATOR_CONFIG = {}
+INDICATOR_CONFIG.update(SETPOINT_CONFIG)
+INDICATOR_CONFIG.update(READOUT_CONFIG)
+INDICATOR_CONFIG.update(TRANSPLANT_CONFIG)
 
 def get_status(indicator: str, value: float) -> Tuple[str, str]:
     """获取指标状态"""
@@ -318,45 +475,78 @@ def render_header(sample_id: str, timepoint: str, risk_level: str):
     with col4:
         st.markdown(f'<span class="risk-badge {risk_class}">{risk_level} RISK</span>', unsafe_allow_html=True)
 
-def render_status_cards(data: Dict[str, float], baseline: Dict[str, float]):
-    """渲染状态卡片"""
-    # 选择主要指标显示
-    main_indicators = ["MAP", "Lactate", "K_A", "CI", "CvO2", "pH", "HR", "SvO2"]
+def _render_indicator_card(indicator: str, value: float, baseline_val: float, config: Dict,
+                           show_device: bool = False):
+    """渲染单个指标卡片"""
+    status, icon = get_status(indicator, value)
 
-    cols = st.columns(4)
-    for i, indicator in enumerate(main_indicators[:8]):
+    # 计算变化
+    change = value - baseline_val
+    change_pct = (change / baseline_val * 100) if baseline_val != 0 else 0
+    trend = "↑" if change > 0 else "↓" if change < 0 else "→"
+
+    # 状态颜色
+    bg_colors = {
+        "critical": "#ff4d4f",
+        "warning": "#faad14",
+        "normal": "#52c41a"
+    }
+    bg_color = bg_colors.get(status, "#8c8c8c")
+
+    device_line = ""
+    if show_device and config.get("device"):
+        device_line = f'<div style="font-size:0.65rem; opacity:0.8; margin-top:2px;">🎛 {config["device"]}</div>'
+
+    # 格式化值（小数位数根据单位）
+    fmt = f"{value:.0f}" if config.get("unit") in ("bpm", "mmHg", "mmHg/s", "g/L", "%") else f"{value:.1f}"
+
+    st.markdown(f"""
+    <div style="background: {bg_color}; padding: 0.8rem; border-radius: 10px; text-align: center; color: white; margin-bottom: 0.5rem;">
+        <div style="font-size: 0.85rem; opacity: 0.9;">{icon} {config.get('name', indicator)}</div>
+        <div style="font-size: 1.8rem; font-weight: bold; margin: 0.2rem 0;">{fmt}</div>
+        <div style="font-size: 0.75rem; opacity: 0.8;">{config.get('unit', '')}</div>
+        <div style="font-size: 0.7rem; margin-top: 0.2rem;">
+            {trend} {abs(change):.1f} ({change_pct:+.1f}%) · 目标: {config.get('target', (0,0))[0]}-{config.get('target', (0,0))[1]}
+        </div>
+        {device_line}
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def render_status_cards(data: Dict[str, float], baseline: Dict[str, float]):
+    """渲染状态卡片 — 灌注调控参数(Setpoints)优先 + 功能观测指标(Readouts)"""
+
+    # ===== 灌注调控参数 (Setpoints) =====
+    st.markdown(
+        '<div style="padding:6px 12px; margin-bottom:8px; border-left:4px solid #1890ff; '
+        'background:rgba(24,144,255,0.06); border-radius:0 6px 6px 0;">'
+        '<strong>🎛 灌注调控参数 (Setpoints)</strong> — 灌注师可直接调控：流量/温度/压力/药物</div>',
+        unsafe_allow_html=True
+    )
+    setpoint_keys = [k for k in SETPOINT_CONFIG if k in data]
+    cols = st.columns(min(len(setpoint_keys), 4) or 4)
+    for i, indicator in enumerate(setpoint_keys):
         with cols[i % 4]:
             value = data.get(indicator, 0)
             baseline_val = baseline.get(indicator, value)
-            config = INDICATOR_CONFIG.get(indicator, {})
-            status, icon = get_status(indicator, value)
+            config = SETPOINT_CONFIG[indicator]
+            _render_indicator_card(indicator, value, baseline_val, config, show_device=True)
 
-            # 计算变化
-            change = value - baseline_val
-            change_pct = (change / baseline_val * 100) if baseline_val != 0 else 0
-            trend = "↑" if change > 0 else "↓" if change < 0 else "→"
-
-            # 状态颜色
-            bg_colors = {
-                "critical": "#ff4d4f",
-                "warning": "#faad14",
-                "normal": "#52c41a"
-            }
-            bg_color = bg_colors.get(status, "#8c8c8c")
-
-            st.markdown(f"""
-            <div style="background: {bg_color}; padding: 1rem; border-radius: 10px; text-align: center; color: white; margin-bottom: 0.5rem;">
-                <div style="font-size: 0.9rem; opacity: 0.9;">{icon} {config.get('name', indicator)}</div>
-                <div style="font-size: 2rem; font-weight: bold; margin: 0.3rem 0;">{value:.1f}</div>
-                <div style="font-size: 0.8rem; opacity: 0.8;">{config.get('unit', '')}</div>
-                <div style="font-size: 0.75rem; margin-top: 0.3rem;">
-                    {trend} {abs(change):.1f} ({change_pct:+.1f}%)
-                </div>
-                <div style="font-size: 0.7rem; opacity: 0.7;">
-                    目标: {config.get('target', (0,0))[0]}-{config.get('target', (0,0))[1]}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+    # ===== 功能观测指标 (Readouts) =====
+    st.markdown(
+        '<div style="padding:6px 12px; margin:12px 0 8px 0; border-left:4px solid #722ed1; '
+        'background:rgba(114,46,209,0.06); border-radius:0 6px 6px 0;">'
+        '<strong>📊 功能观测指标 (Readouts)</strong> — 反映灌注质量，通过调整Setpoints间接优化</div>',
+        unsafe_allow_html=True
+    )
+    readout_keys = [k for k in READOUT_CONFIG if k in data]
+    cols2 = st.columns(min(len(readout_keys), 4) or 4)
+    for i, indicator in enumerate(readout_keys):
+        with cols2[i % 4]:
+            value = data.get(indicator, 0)
+            baseline_val = baseline.get(indicator, value)
+            config = READOUT_CONFIG[indicator]
+            _render_indicator_card(indicator, value, baseline_val, config)
 
 def render_time_series(patient_data: Dict[str, Any], selected_indicators: List[str]):
     """渲染时序趋势图"""
@@ -422,12 +612,14 @@ def render_time_series(patient_data: Dict[str, Any], selected_indicators: List[s
     st.plotly_chart(fig, use_container_width=True)
 
 def get_strategy_recommendations(data: Dict[str, float], baseline: Dict[str, float]) -> List[Dict]:
-    """获取策略推荐"""
+    """获取策略推荐（灌注调控优先）"""
     recommendations = []
 
     # 检查每个指标
     for indicator, value in data.items():
         config = INDICATOR_CONFIG.get(indicator, {})
+        if not config:
+            continue
         status, _ = get_status(indicator, value)
 
         if status in ["critical", "warning"]:
@@ -443,76 +635,147 @@ def get_strategy_recommendations(data: Dict[str, float], baseline: Dict[str, flo
                 "status": status
             }
 
-            # 根据指标添加具体干预措施
-            if indicator == "MAP":
-                rec["intervention"] = "血管活性药物支持"
-                rec["drug"] = "去甲肾上腺素 (Norepinephrine)"
-                rec["dose"] = "0.05-0.1 μg/kg/min，滴定至目标MAP"
+            # ===== 灌注调控参数异常 =====
+            if indicator == "Flow":
+                rec["intervention"] = "调整泵流量"
+                rec["drug"] = "调整离心泵/滚压泵转速"
+                rec["dose"] = f"目标流量 4.2-4.8 L/min (当前 {value:.1f})"
                 rec["reasoning"] = [
-                    f"Step 1 - 观察: MAP={value:.1f} mmHg，低于组织灌注安全阈值",
-                    "Step 2 - 分析: 低MAP导致冠脉灌注不足、组织缺氧",
-                    "Step 3 - 机制: [Evidence-1] 低血压→器官灌注不足→MOF风险",
-                    "Step 4 - 干预: 首选去甲肾上腺素，α受体激动提升血管张力",
-                    "Step 5 - 预期: MAP提升至65-80 mmHg，改善组织灌注"
+                    f"Step 1 - 观察: 灌注流量={value:.1f} L/min，偏离目标范围",
+                    "Step 2 - 分析: 流量是灌注最核心参数，直接影响组织氧供",
+                    "Step 3 - 机制: 流量↓→DO2↓→组织缺氧→Lactate↑",
+                    "Step 4 - 干预: 调整泵转速，检查管路阻力和储血罐液面",
+                    "Step 5 - 预期: 流量恢复至4.2-4.8 L/min"
                 ]
-                rec["monitoring"] = ["MAP: 每5分钟", "HR: 每5分钟", "Lactate: 每30分钟"]
-                rec["caution"] = ["注意容量状态", "高剂量升压药可致心律失常"]
+                rec["monitoring"] = ["Flow: 持续", "Lactate: 每15分钟", "AoDP: 持续"]
+                rec["caution"] = ["排除管路折叠/气泡", "注意储血罐液面"]
 
-            elif indicator == "Lactate":
-                rec["intervention"] = "改善组织灌注/氧合"
-                rec["drug"] = "优化血流动力学 + 纠正贫血"
-                rec["dose"] = "目标Hb>10g/dL，优化CI"
+            elif indicator == "Temperature":
+                rec["intervention"] = "调整变温水箱"
+                rec["drug"] = "热交换器温度调整"
+                rec["dose"] = f"复温方案: 22→37°C/30min (当前 {value:.1f}°C)"
                 rec["reasoning"] = [
-                    f"Step 1 - 观察: Lactate={value:.1f} mmol/L，提示组织缺氧或灌注不足",
-                    "Step 2 - 分析: 乳酸堆积反映无氧代谢增加",
-                    "Step 3 - 机制: [Evidence-2] 组织缺氧→无氧糖酵解→乳酸产生↑",
-                    "Step 4 - 干预: 优化氧输送(DO2)，改善组织灌注",
-                    "Step 5 - 预期: Lactate下降至<2 mmol/L"
+                    f"Step 1 - 观察: 灌注温度={value:.1f}°C",
+                    "Step 2 - 分析: 温度影响范围最广（CVR、Tau、代谢率）",
+                    "Step 3 - 机制: 低温→CVR↑→冠脉微循环阻力增加",
+                    "Step 4 - 干预: 按复温方案调整热交换器",
+                    "Step 5 - 预期: 按方案升温至目标"
                 ]
-                rec["monitoring"] = ["Lactate: 每30分钟", "ScvO2: 持续", "尿量: 每小时"]
-                rec["caution"] = ["排除肝功能不全", "注意是否存在肠系膜缺血"]
+                rec["monitoring"] = ["Temperature: 每5分钟", "CVR: 每15分钟", "Lactate: 每15分钟"]
+                rec["caution"] = ["升温过快可致微循环损伤", "注意温差<10°C"]
+
+            elif indicator == "AoDP":
+                rec["intervention"] = "调整灌注压力"
+                rec["drug"] = "调整离心泵转速/反馈控制"
+                rec["dose"] = f"目标AoDP 35-45 mmHg (当前 {value:.0f})"
+                rec["reasoning"] = [
+                    f"Step 1 - 观察: AoDP={value:.0f} mmHg，灌注压偏离目标",
+                    "Step 2 - 分析: AoDP是冠脉灌注驱动压",
+                    "Step 3 - 机制: AoDP↓→冠脉灌注↓→心肌缺氧→EF↓",
+                    "Step 4 - 干预: 调整泵转速，检查后负荷",
+                    "Step 5 - 预期: AoDP稳定在40 mmHg"
+                ]
+                rec["monitoring"] = ["AoDP: 持续", "CF: 持续", "Lactate: 每15分钟"]
+                rec["caution"] = ["过高压力可致水肿", "注意冠脉插管位置"]
+
+            elif indicator == "Hemoglobin":
+                rec["intervention"] = "血液管理"
+                rec["drug"] = "RBC添加 / 灌注液调配"
+                rec["dose"] = f"目标Hb 40-50 g/L (当前 {value:.0f})"
+                rec["reasoning"] = [
+                    f"Step 1 - 观察: Hb={value:.0f} g/L，携氧能力不足",
+                    "Step 2 - 分析: Hb直接影响CaO2和DO2",
+                    "Step 3 - 机制: Hb↓→CaO2↓→MVO2↓→心肌缺氧",
+                    "Step 4 - 干预: 添加RBC至储血罐",
+                    "Step 5 - 预期: Hb恢复至40-50 g/L"
+                ]
+                rec["monitoring"] = ["Hb: 每30分钟", "MVO2: 持续", "O2提取率: 持续"]
+                rec["caution"] = ["注意容量负荷", "高Hb可致高粘滞"]
+
+            elif indicator == "PaO2":
+                rec["intervention"] = "调整氧合器参数"
+                rec["drug"] = "调整FiO2和扫气流量"
+                rec["dose"] = f"目标PaO2 100-200 mmHg (当前 {value:.0f})"
+                rec["reasoning"] = [
+                    f"Step 1 - 观察: PaO2={value:.0f} mmHg",
+                    "Step 2 - 分析: PaO2影响溶解氧和CaO2",
+                    "Step 3 - 机制: PaO2↓→CaO2↓→Lactate↑",
+                    "Step 4 - 干预: 调整氧合器FiO2↑/扫气流量↑",
+                    "Step 5 - 预期: PaO2恢复至目标范围"
+                ]
+                rec["monitoring"] = ["PaO2: 每15分钟", "Lactate: 每15分钟"]
+                rec["caution"] = ["过高FiO2可致氧中毒"]
+
+            # ===== 功能观测指标异常 =====
+            elif indicator == "Lactate":
+                rec["intervention"] = "优化灌注参数（Flow/AoDP/Hb）"
+                rec["drug"] = "调整Setpoints改善灌注"
+                rec["dose"] = "检查Flow、AoDP、Hb、PaO2"
+                rec["reasoning"] = [
+                    f"Step 1 - 观察: Lactate={value:.1f} mmol/L，组织缺氧/灌注不足",
+                    "Step 2 - 分析: 乳酸是灌注质量核心监测指标",
+                    "Step 3 - 机制: 灌注不足→无氧代谢→Lactate↑",
+                    "Step 4 - 干预: 检查并优化Flow↑、AoDP→目标、Hb→目标",
+                    "Step 5 - 预期: Lactate趋势下降，<5 mmol/L(OCS接受标准)"
+                ]
+                rec["monitoring"] = ["Lactate: 每15分钟", "乳酸清除率: 趋势", "Flow: 持续"]
+                rec["caution"] = ["持续>5且上升→评估器官质量", "排除灌注液本身问题"]
 
             elif indicator == "K_A":
-                rec["intervention"] = "降钾治疗"
-                rec["drug"] = "胰岛素+葡萄糖 / 钙剂"
-                rec["dose"] = "10U胰岛素 + 50mL 50%葡萄糖，葡萄糖酸钙10mL静推"
+                rec["intervention"] = "电解质纠正（灌注液/打药）"
+                rec["drug"] = "胰岛素+葡萄糖 / 钙剂 / 灌注液KCl调整"
+                rec["dose"] = "高钾: 10U胰岛素+25g葡萄糖; 低钾: KCl 10-20mEq/h加入灌注液"
                 rec["reasoning"] = [
-                    f"Step 1 - 观察: K+={value:.1f} mmol/L，存在高钾血症",
-                    "Step 2 - 分析: 高钾可致心律失常，T波高尖",
-                    "Step 3 - 机制: [Evidence-3] 高钾→心肌细胞膜电位异常→心律失常",
-                    "Step 4 - 干预: 钙剂稳定心肌膜，胰岛素促钾内移",
-                    "Step 5 - 预期: K+降至4.0-4.5 mmol/L"
+                    f"Step 1 - 观察: K+={value:.1f} mmol/L",
+                    "Step 2 - 分析: 钾异常可致致命性心律失常",
+                    "Step 3 - 机制: 高钾→心肌传导异常; 可能与心肌保护液相关",
+                    "Step 4 - 干预: 高钾→胰岛素降钾+钙剂护心; 低钾→灌注液补KCl",
+                    "Step 5 - 预期: K+恢复至4.0-5.0 mmol/L"
                 ]
                 rec["monitoring"] = ["K+: 每30分钟", "ECG: 持续", "血糖: 每30分钟"]
-                rec["caution"] = ["注意低血糖风险", "高钾>6.5需紧急处理"]
+                rec["caution"] = ["注意心肌保护液残余高钾", "库存血含钾也较高"]
+
+            elif indicator == "pH":
+                rec["intervention"] = "调整氧合器扫气 / NaHCO3"
+                rec["drug"] = "扫气流量↑排CO2 或 NaHCO3纠酸"
+                rec["dose"] = "扫气流量调整; NaHCO3根据BE计算"
+                rec["reasoning"] = [
+                    f"Step 1 - 观察: pH={value:.2f}",
+                    "Step 2 - 分析: 酸中毒影响心肌收缩力和药物效应",
+                    "Step 3 - 机制: pH↓→心肌抑制+血管反应性↓",
+                    "Step 4 - 干预: 呼吸性→扫气流量↑排CO2; 代谢性→NaHCO3",
+                    "Step 5 - 预期: pH恢复至7.25-7.35"
+                ]
+                rec["monitoring"] = ["血气: 每15分钟", "电解质: 同步"]
+                rec["caution"] = ["区分呼吸性/代谢性", "过快纠正可致低钾"]
+
+            elif indicator == "EF":
+                rec["intervention"] = "正性肌力支持 + 优化灌注条件"
+                rec["drug"] = "Dobutamine↑ / Levosimendan / 检查冠脉灌注"
+                rec["dose"] = "多巴酚丁胺 2-10 μg/min; Levosimendan 45μg/kg bolus"
+                rec["reasoning"] = [
+                    f"Step 1 - 观察: EF={value:.0f}%",
+                    "Step 2 - 分析: EF是供心收缩功能核心评估指标",
+                    "Step 3 - 机制: EF↓→可能缺血再灌注损伤/心肌保护不良",
+                    "Step 4 - 干预: Dobutamine增强收缩力; 检查冠脉灌注/温度是否到位",
+                    "Step 5 - 预期: EF改善"
+                ]
+                rec["monitoring"] = ["EF: 持续", "dP/dt: 持续", "冠脉流量: 持续"]
+                rec["caution"] = ["EF持续<40%且无改善→评估器官可用性"]
 
             elif indicator == "CI":
-                rec["intervention"] = "强心治疗"
-                rec["drug"] = "多巴酚丁胺 / 米力农"
-                rec["dose"] = "多巴酚丁胺 5-10 μg/kg/min"
+                rec["intervention"] = "正性肌力+容量优化"
+                rec["drug"] = "Dobutamine / 米力农"
+                rec["dose"] = "Dobutamine 5-10 μg/kg/min"
                 rec["reasoning"] = [
-                    f"Step 1 - 观察: CI={value:.1f} L/min/m²，心输出量不足",
+                    f"Step 1 - 观察: CI={value:.1f} L/min/m²",
                     "Step 2 - 分析: 低CI导致组织灌注下降",
-                    "Step 3 - 机制: [Evidence-4] 移植心功能不全→CO↓→器官灌注↓",
+                    "Step 3 - 机制: 移植心功能不全→CO↓→器官灌注↓",
                     "Step 4 - 干预: 正性肌力药增强心肌收缩力",
                     "Step 5 - 预期: CI提升至>2.5 L/min/m²"
                 ]
-                rec["monitoring"] = ["CI: 持续", "CVP: 持续", "PCWP: 每小时"]
-                rec["caution"] = ["注意心律失常", "避免过度增加心肌耗氧"]
-
-            elif indicator == "pH":
-                rec["intervention"] = "纠正酸碱平衡"
-                rec["drug"] = "碳酸氢钠 / 优化通气"
-                rec["dose"] = "NaHCO3根据BE计算，或调整呼吸机参数"
-                rec["reasoning"] = [
-                    f"Step 1 - 观察: pH={value:.2f}，存在酸中毒",
-                    "Step 2 - 分析: 酸中毒影响心肌收缩力和药物效应",
-                    "Step 3 - 机制: [Evidence-5] 酸中毒→心肌抑制+血管反应性↓",
-                    "Step 4 - 干预: 根据类型选择碱化或通气调整",
-                    "Step 5 - 预期: pH恢复至7.35-7.40"
-                ]
-                rec["monitoring"] = ["血气: 每30分钟", "电解质: 每小时"]
-                rec["caution"] = ["区分代谢性/呼吸性酸中毒", "过快纠正可致低钾"]
+                rec["monitoring"] = ["CI: 持续", "CVP: 持续"]
+                rec["caution"] = ["注意心律失常", "严重→VA-ECMO评估"]
 
             else:
                 rec["intervention"] = "对症处理"
@@ -525,8 +788,12 @@ def get_strategy_recommendations(data: Dict[str, float], baseline: Dict[str, flo
             rec["confidence"] = 85 if status == "critical" else 75
             recommendations.append(rec)
 
-    # 按优先级排序
-    recommendations.sort(key=lambda x: 0 if x["priority"] == "URGENT" else 1)
+    # 按优先级排序: setpoints先，readouts后; critical先，warning后
+    def sort_key(r):
+        is_setpoint = r["indicator"] in SETPOINT_CONFIG
+        is_critical = r["status"] == "critical"
+        return (0 if is_critical else 1, 0 if is_setpoint else 1)
+    recommendations.sort(key=sort_key)
     return recommendations
 
 def render_strategy_panel(recommendations: List[Dict]):
@@ -685,11 +952,15 @@ def main():
 
         # 指标选择
         st.markdown("### 📈 趋势图指标")
-        available_indicators = list(INDICATOR_CONFIG.keys())
+        st.caption("🎛 调控参数")
+        setpoint_list = list(SETPOINT_CONFIG.keys())
+        st.caption("📊 观测指标")
+        readout_list = list(READOUT_CONFIG.keys())
+        available_indicators = setpoint_list + readout_list + list(TRANSPLANT_CONFIG.keys())
         selected_indicators = st.multiselect(
             "选择显示的指标",
             available_indicators,
-            default=["MAP", "Lactate", "K_A", "CI"]
+            default=["Flow", "Temperature", "Lactate", "K_A"]
         )
 
         # Agent模式

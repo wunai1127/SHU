@@ -148,7 +148,17 @@ class IntentRecognizer:
     """
 
     INDICATOR_KEYWORDS = {
-        "MAP": ["MAP", "map", "血压", "动脉压", "低血压", "高血压", "灌注压"],
+        # 灌注调控参数 (Setpoints)
+        "Flow": ["流量", "flow", "Flow", "灌注流量", "泵流量", "CPB流量", "泵速"],
+        "Temperature": ["温度", "temperature", "体温", "复温", "降温", "变温", "灌注温度"],
+        "AoDP": ["AoDP", "aodp", "灌注压", "主动脉舒张压", "后负荷"],
+        "PaO2": ["PaO2", "pao2", "氧分压", "动脉氧分压", "FiO2"],
+        "Hemoglobin": ["血红蛋白", "Hb", "hb", "HB", "Hemoglobin", "RBC", "红细胞", "携氧"],
+        "PacingRate": ["起搏", "pacing", "起搏心率", "起搏器"],
+        "Dobutamine": ["多巴酚丁胺", "dobutamine", "正性肌力"],
+        "Insulin": ["胰岛素", "insulin", "血糖控制"],
+        # 功能观测指标 (Readouts)
+        "MAP": ["MAP", "map", "血压", "动脉压", "低血压", "高血压"],
         "Lactate": ["乳酸", "lactate", "Lactate"],
         "K": ["钾", "K+", "血钾", "高钾", "低钾", "钾离子"],
         "CI": ["心指数", "CI", "ci", "心输出量", "心排量", "心排"],
@@ -156,10 +166,13 @@ class IntentRecognizer:
         "HR": ["心率", "HR", "hr", "心跳"],
         "SvO2": ["SvO2", "svo2", "混合静脉血氧", "血氧饱和度"],
         "CvO2": ["CvO2", "cvo2", "静脉血氧含量"],
+        "EF": ["EF", "ef", "射血分数", "LVEF", "lvef"],
+        "MVO2": ["MVO2", "mvo2", "心肌氧耗", "氧耗"],
+        "dPdt": ["dPdt", "dpdt", "dp/dt", "压力变化率", "收缩力"],
+        # 移植/术后评估
         "PVR": ["PVR", "pvr", "肺血管阻力", "肺阻力"],
         "TPG": ["TPG", "tpg", "跨肺压差"],
         "PASP": ["PASP", "pasp", "肺动脉收缩压", "肺动脉压"],
-        "EF": ["EF", "ef", "射血分数", "LVEF", "lvef"],
         "Creatinine": ["肌酐", "creatinine", "Creatinine"],
         "GFR": ["GFR", "gfr", "肾小球滤过率", "肾功能"],
         "Bilirubin": ["胆红素", "bilirubin", "Bilirubin"],
@@ -698,12 +711,22 @@ class KnowledgeQA:
 - 供心植入后早期评估期
 - 鱼精蛋白中和期
 
+**灌注调控参数（Setpoints — 灌注师可直接调控）：**
+- Flow（灌注流量）: 目标4.2-4.8 L/min，泵转速直接控制
+- Temperature（灌注温度）: 22→37°C复温方案，热交换器控制
+- AoDP（灌注压）: 目标35-45 mmHg，泵转速/反馈控制
+- PaO2（氧分压）: 氧合器FiO2/扫气流量调节
+- Hemoglobin: 目标40-50 g/L，RBC添加管理
+- PacingRate: 起搏器AAI模式 100-110 bpm
+- Dobutamine: 正性肌力支持 2-6 μg/min
+- Insulin: 代谢支持 1.5-3.0 U/h
+
 **术中特征：**
-- 血流动力学不稳定是常态，需要即时干预
-- 血管活性药物（去甲肾上腺素、多巴胺、肾上腺素、米力农等）正在使用或随时可能启用
+- 灌注师通过调整Setpoints来优化Readouts（乳酸、EF、dP/dt等）
+- 电解质紊乱（尤其高钾）可能与心肌保护液/库存血相关，需打药纠正
 - 供心缺血再灌注损伤可能导致急性右心衰竭
-- 电解质紊乱（尤其高钾）可能与心肌保护液/库存血相关
 - 需关注移植心脏的变时性/变力性功能（去神经心脏）
+- 温度策略影响范围最广（CVR、Tau、代谢率、舒张功能）
 - 出血/凝血问题（鱼精蛋白、血小板、纤维蛋白原）
 
 # 输入
@@ -730,10 +753,14 @@ class KnowledgeQA:
 
 **【机制】** 术中病理生理机制（结合供心状态、CPB影响、再灌注损伤等术中特有因素）
 
-**【即时处置】**
-- 首选方案：药物 + 剂量 + 给药途径 + 滴定目标（面向灌注师的具体操作指令）
-- 如需调整CPB参数：流量/压力目标
-- 紧急备选方案
+**【Setpoint调整】**（灌注师直接操作）
+- Flow调整：目标流量 + 泵速方向
+- Temperature调整：热交换器目标温度
+- AoDP调整：灌注压目标
+- 药物调整：Dobutamine/Insulin/KCl等 + 剂量 + 注射泵速率
+
+**【打药方案】**（如需额外用药）
+- 药物名称 + 剂量 + 给药途径 + 滴定目标
 
 **【术中警示】** 移植心脏特殊注意事项（去神经化影响、右心保护、出血风险等）
 
@@ -743,8 +770,9 @@ class KnowledgeQA:
 1. 剂量、阈值必须来自提供的证据，不可编造
 2. 证据不足时标注"基于临床经验补充"
 3. 术中播报风格：每段≤2句话，直接给出可操作指令
-4. 优先考虑术中安全性（出血、心律失常、右心衰竭）
-5. 使用中文"""
+4. 优先建议Setpoint调整（Flow/Temperature/AoDP/药物），而不是笼统的"处理"
+5. 优先考虑术中安全性（出血、心律失常、右心衰竭）
+6. 使用中文"""
 
     def _build_postop_prompt(self, question: str, intent: Dict,
                              kg_section: str, kb_section: str,
@@ -1255,18 +1283,24 @@ def _tts_stop_html() -> str:
 # 术中/术后 阶段配置
 # =============================================================================
 
-# 术中演示警报
+# 术中演示警报 — 以灌注调控参数为主
 INTRAOP_ALERTS = [
-    {"level": "critical", "indicator": "MAP", "value": 45, "unit": "mmHg",
-     "target": "65-80", "message": "平均动脉压严重偏低，建议去甲肾上腺素 0.05~0.1 μg/kg/min"},
+    # 灌注调控参数异常（灌注师首要关注）
+    {"level": "critical", "indicator": "Flow", "value": 3.6, "unit": "L/min",
+     "target": "4.2-4.8", "message": "灌注流量偏低！检查泵转速、管路阻力、储血罐液面"},
+    {"level": "warning", "indicator": "Temperature", "value": 28.5, "unit": "°C",
+     "target": "复温至37°C", "message": "灌注温度偏低，复温进度滞后，调整热交换器"},
+    {"level": "warning", "indicator": "AoDP", "value": 30, "unit": "mmHg",
+     "target": "35-45", "message": "灌注压偏低，冠脉灌注可能不足，调整泵转速"},
+    {"level": "warning", "indicator": "Hemoglobin", "value": 34, "unit": "g/L",
+     "target": "40-50", "message": "Hb偏低，携氧能力下降，考虑添加RBC"},
+    # 关键功能指标异常（需通过调Setpoints改善）
+    {"level": "critical", "indicator": "Lactate", "value": 5.2, "unit": "mmol/L",
+     "target": "<4.0", "message": "乳酸升高！检查Flow/AoDP/Hb，评估灌注充足性"},
     {"level": "critical", "indicator": "K+", "value": 6.2, "unit": "mmol/L",
-     "target": "3.5-5.0", "message": "高钾血症，可能与心肌保护液/库存血相关，建议胰岛素+葡萄糖"},
-    {"level": "warning", "indicator": "Lactate", "value": 4.5, "unit": "mmol/L",
-     "target": "<4.0", "message": "乳酸升高，组织灌注不足，检查CPB流量和血红蛋白"},
-    {"level": "warning", "indicator": "CI", "value": 2.0, "unit": "L/min/m²",
-     "target": "2.2-4.0", "message": "心指数偏低，供心功能不全？考虑多巴酚丁胺/米力农"},
-    {"level": "warning", "indicator": "PASP", "value": 48, "unit": "mmHg",
-     "target": "<35", "message": "肺动脉压升高，警惕急性右心衰竭，考虑吸入NO"},
+     "target": "3.5-5.0", "message": "高钾血症，可能与心肌保护液/库存血相关，需打药降钾"},
+    {"level": "warning", "indicator": "pH", "value": 7.18, "unit": "",
+     "target": "7.25-7.35", "message": "酸中毒，调整氧合器扫气流量↑排CO2 / NaHCO3"},
 ]
 
 # 术后演示警报
@@ -1283,15 +1317,15 @@ POSTOP_ALERTS = [
      "target": "<2.0", "message": "乳酸轻度升高，评估心功能及组织灌注"},
 ]
 
-# 术中快捷提问
+# 术中快捷提问 — 灌注调控导向
 INTRAOP_QUICK_QS = [
-    "MAP低应该怎么处理？",
-    "CPB脱机后心指数低怎么办？",
-    "高钾血症如何处理？",
+    "灌注流量低怎么调？",
     "乳酸升高怎么办？",
+    "灌注温度怎么控制？",
+    "高钾血症如何处理？",
+    "血红蛋白低要加RBC吗？",
+    "灌注压AoDP低怎么调？",
     "急性右心衰竭用什么药？",
-    "肺动脉压高的处理策略？",
-    "鱼精蛋白过敏怎么办？",
     "当前风险评估",
 ]
 
@@ -1462,11 +1496,11 @@ def _render_qa(qa_engine: KnowledgeQA, phase: str, phase_key: str, quick_qs: Lis
             if phase == "intraop":
                 st.markdown("""
 **术中支持的问题类型：**
-- 🏥 **急性处置**: "MAP低怎么处理？" "CPB脱机后怎么办？"
-- 💊 **血管活性药**: "去甲肾上腺素怎么用？" "米力农剂量？"
+- 🎛 **Setpoint调整**: "流量低怎么调？" "温度怎么控制？" "灌注压低？"
+- 💊 **打药方案**: "高钾打什么药？" "多巴酚丁胺怎么用？"
+- 📊 **Readout异常**: "乳酸升高怎么办？" "EF低？"
 - ⚡ **紧急情况**: "急性右心衰竭？" "高钾心律失常？"
-- 📏 **术中阈值**: "CPB脱机MAP目标？" "乳酸上限？"
-- 🔗 **机制查询**: "为什么肺阻力升高？"
+- 🔗 **机制查询**: "温度影响哪些指标？" "为什么肺阻力升高？"
                 """)
             else:
                 st.markdown("""
@@ -1520,8 +1554,8 @@ with tab_intraop:
     st.markdown(
         '<div style="padding:8px 16px; border-radius:8px; '
         'background:rgba(255,77,79,0.08); border-left:4px solid #ff4d4f; margin-bottom:1rem;">'
-        '<strong>术中模式</strong> — CPB脱机期/供心评估/血流动力学即时管理 · '
-        '提示词针对术中紧急场景优化，强调即时可操作性</div>',
+        '<strong>术中模式</strong> — 灌注调控为核心：Flow/Temperature/AoDP/打药 · '
+        '灌注师直接调控Setpoints，观测Readouts评估灌注质量</div>',
         unsafe_allow_html=True
     )
 
