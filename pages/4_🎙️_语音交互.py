@@ -51,24 +51,28 @@ def _init_neo4j():
 @st.cache_resource
 def _init_llm():
     api_key = os.getenv("OPENAI_API_KEY")
+    base_url = os.getenv("OPENAI_BASE_URL")
+    model = os.getenv("LLM_MODEL", "deepseek-v3.2")
     if not api_key:
-        return None
+        return None, "OPENAI_API_KEY环境变量未设置"
+    if not base_url:
+        return None, "OPENAI_BASE_URL环境变量未设置"
     try:
         from baseline_strategy_recommender import OpenAILLM
-        llm = OpenAILLM(
-            api_key=api_key,
-            model=os.getenv("LLM_MODEL", "deepseek-v3.2"),
-            base_url=os.getenv("OPENAI_BASE_URL"),
-        )
+        llm = OpenAILLM(api_key=api_key, model=model, base_url=base_url)
         if llm.is_available():
-            return llm
-    except Exception:
-        pass
-    return None
+            return llm, None
+        return None, "OpenAI客户端创建失败（检查openai包是否安装）"
+    except ImportError:
+        return None, "openai包未安装，请运行: pip install openai"
+    except Exception as e:
+        return None, str(e)
 
 
 neo4j_kg = _init_neo4j()
-llm_client = _init_llm()
+_llm_result = _init_llm()
+llm_client = _llm_result[0]
+_llm_init_error = _llm_result[1]
 
 # =============================================================================
 # 加载知识库
@@ -311,7 +315,10 @@ class KnowledgeQA:
         verified, confidence = self._verify_evidences(evidences)
 
         # Step 4: 生成回答（优先LLM增强，回退到规则生成）
+        self._last_llm_error = None
         llm_answer = self._llm_enhance(question, intent, evidences)
+        llm_error = getattr(self, '_last_llm_error', None)
+
         if llm_answer:
             answer_text = llm_answer
             sources = list(set(e.get("source", "未知来源") for e in evidences))
@@ -328,6 +335,7 @@ class KnowledgeQA:
             "verified": verified,
             "confidence": confidence,
             "evidence_count": len(evidences),
+            "llm_error": llm_error,
         }
 
     # ----- 检索方法 -----
@@ -596,8 +604,10 @@ class KnowledgeQA:
     def _llm_enhance(self, question: str, intent: Dict, evidences: List[Dict]) -> Optional[str]:
         """使用LLM增强回答（基于检索到的证据）"""
         if not self.llm:
+            self._last_llm_error = "LLM未配置（检查OPENAI_API_KEY和OPENAI_BASE_URL环境变量）"
             return None
 
+        self._last_llm_error = None
         try:
             # 构建证据上下文
             evidence_text = ""
@@ -611,7 +621,7 @@ class KnowledgeQA:
                 evidence_text += f"[{i}] ({source}) {data_str}\n"
 
             if not evidence_text:
-                evidence_text = "当前无检索到的直接证据。"
+                evidence_text = "当前无检索到的直接证据。请根据心脏移植灌注监测的专业知识回答。"
 
             prompt = f"""你是心脏移植灌注监测的临床决策支持专家。请基于以下检索到的证据，回答用户的问题。
 
@@ -638,7 +648,10 @@ class KnowledgeQA:
             response = self.llm.generate(prompt, temperature=0.2, max_tokens=1000)
             if response and len(response.strip()) > 10:
                 return response.strip()
+            else:
+                self._last_llm_error = f"LLM返回空响应"
         except Exception as e:
+            self._last_llm_error = f"LLM调用失败: {e}"
             logger.warning(f"LLM增强失败: {e}")
 
         return None
@@ -997,6 +1010,46 @@ def _tts_html(text: str) -> str:
 </script>"""
 
 
+def _stt_html(target_label: str) -> str:
+    """生成自包含的 STT iframe HTML（解决 iframe 隔离问题）"""
+    return f"""<script>
+(function() {{
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+              || window.parent.SpeechRecognition || window.parent.webkitSpeechRecognition;
+    if (!SR) {{ alert('浏览器不支持语音识别，请使用Chrome'); return; }}
+    const rec = new SR();
+    rec.lang = 'zh-CN';
+    rec.continuous = false;
+    rec.interimResults = false;
+    rec.onresult = function(e) {{
+        let t = '';
+        for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
+        if (!t) return;
+        // 找到 Streamlit 主页面中的 textarea
+        const doc = window.parent.document;
+        const el = doc.querySelector('textarea[aria-label="{target_label}"]');
+        if (el) {{
+            const nativeSetter = Object.getOwnPropertyDescriptor(
+                window.HTMLTextAreaElement.prototype, 'value').set;
+            nativeSetter.call(el, t);
+            el.dispatchEvent(new Event('input', {{bubbles: true}}));
+            // 自动触发提交 - 模拟 Ctrl+Enter
+            setTimeout(function() {{
+                el.dispatchEvent(new KeyboardEvent('keydown',
+                    {{key:'Enter', code:'Enter', keyCode:13, ctrlKey:true, bubbles:true}}));
+            }}, 300);
+        }}
+    }};
+    rec.onerror = function(e) {{
+        if (e.error !== 'no-speech') {{
+            console.error('STT error:', e.error);
+        }}
+    }};
+    rec.start();
+}})();
+</script>"""
+
+
 def _tts_stop_html() -> str:
     """生成停止 TTS 的 iframe HTML"""
     return """<script>
@@ -1023,6 +1076,10 @@ if llm_client:
 else:
     status_parts.append("LLM ⚪")
 st.caption(f"🔌 {' | '.join(status_parts)}")
+
+# 显示LLM初始化错误（帮助排查）
+if _llm_init_error:
+    st.warning(f"LLM初始化失败: {_llm_init_error}")
 
 # 注入JS
 st.components.v1.html(VOICE_JS, height=0)
@@ -1086,16 +1143,10 @@ col_input, col_output = st.columns([1, 1])
 with col_input:
     st.markdown("**语音/文字输入**")
 
-    # 语音输入按钮
-    btn_col1, btn_col2 = st.columns(2)
-    with btn_col1:
-        if st.button("🎤 语音输入", use_container_width=True):
-            st.components.v1.html(
-                "<script>startSTT('请输入您的问题');</script>", height=0
-            )
-    with btn_col2:
-        if st.button("⏹️ 停止录音", use_container_width=True):
-            st.components.v1.html("<script>stopSTT();</script>", height=0)
+    # 语音输入按钮（自包含STT，解决iframe隔离）
+    if st.button("🎤 点击语音输入", use_container_width=True):
+        st.components.v1.html(_stt_html("请输入您的问题"), height=0)
+        st.info("🎤 正在录音，请说话...（说完自动停止）")
 
     # 文字输入
     typed_question = st.text_area(
@@ -1160,6 +1211,11 @@ with col_output:
 
         # 回答正文
         st.markdown(result["answer"])
+
+        # LLM调用错误提示
+        llm_err = result.get("llm_error")
+        if llm_err:
+            st.warning(f"LLM未参与回答: {llm_err}")
 
         # 来源标注
         if result["sources"]:

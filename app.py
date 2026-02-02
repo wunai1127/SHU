@@ -93,19 +93,19 @@ def init_neo4j():
 def init_llm():
     """初始化LLM客户端（全局单例）"""
     api_key = os.getenv("OPENAI_API_KEY")
+    base_url = os.getenv("OPENAI_BASE_URL")
+    model = os.getenv("LLM_MODEL", "deepseek-v3.2")
     if not api_key:
-        return None
+        return None, "OPENAI_API_KEY未设置"
+    if not base_url:
+        return None, "OPENAI_BASE_URL未设置"
     try:
-        llm = OpenAILLM(
-            api_key=api_key,
-            model=os.getenv("LLM_MODEL", "deepseek-v3.2"),
-            base_url=os.getenv("OPENAI_BASE_URL"),
-        )
+        llm = OpenAILLM(api_key=api_key, model=model, base_url=base_url)
         if llm.is_available():
-            return llm
-    except Exception:
-        pass
-    return None
+            return llm, None
+        return None, "OpenAI客户端创建失败"
+    except Exception as e:
+        return None, str(e)
 
 
 # =============================================================================
@@ -655,7 +655,9 @@ def main():
 
     # 初始化Neo4j和LLM
     neo4j_kg = init_neo4j()
-    llm_client = init_llm()
+    _llm_result = init_llm()
+    llm_client = _llm_result[0]
+    _llm_err = _llm_result[1]
     neo4j_connected = neo4j_kg is not None
     llm_configured = llm_client is not None
 
@@ -700,7 +702,12 @@ def main():
         st.markdown(f"- **Agent系统:** {'✅ 可用' if AGENT_AVAILABLE else '⚪ 不可用'}")
         st.markdown(f"- **Neo4j:** {'✅ 已连接' if neo4j_connected else '⚪ 未连接'}")
         llm_model = os.getenv("LLM_MODEL", "N/A")
-        st.markdown(f"- **LLM:** {'✅ ' + llm_model if llm_configured else '⚪ 未配置'}")
+        if llm_configured:
+            st.markdown(f"- **LLM:** ✅ {llm_model}")
+        else:
+            st.markdown(f"- **LLM:** ⚪ 未配置")
+            if _llm_err:
+                st.caption(f"  ({_llm_err})")
 
         # Agent详情
         if agent_mode and AGENT_AVAILABLE:
