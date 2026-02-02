@@ -336,6 +336,7 @@ class KnowledgeQA:
             "confidence": confidence,
             "evidence_count": len(evidences),
             "llm_error": llm_error,
+            "_evidences": evidences,
         }
 
     # ----- 检索方法 -----
@@ -555,101 +556,199 @@ class KnowledgeQA:
     # ----- Neo4j 知识图谱查询 -----
 
     def _search_neo4j(self, intent: Dict, question: str) -> List[Dict]:
-        """从Neo4j知识图谱检索证据"""
+        """从Neo4j知识图谱检索结构化三元组证据"""
         if not self.neo4j_kg:
             return []
 
         results = []
         indicators = intent.get("indicators", [])
         drugs = intent.get("drugs", [])
+        intent_type = intent.get("intent", "general_qa")
 
         try:
-            # 按指标查询
-            for ind in indicators[:2]:
+            for ind in indicators[:3]:
                 keywords = IntentRecognizer.INDICATOR_KEYWORDS.get(ind, [ind])
-                for kw in keywords[:1]:
+
+                # 1. 综合决策支持查询（病因+后果+治疗）
+                for kw in keywords[:2]:
                     decision = self.neo4j_kg.query_decision_support(kw)
-                    for cause in decision.get("causes", [])[:3]:
+
+                    for cause in decision.get("causes", [])[:5]:
                         results.append({
-                            "type": "kg_cause",
+                            "type": "kg_triple",
+                            "triple": (cause.get("cause", "?"), cause.get("relation", "causes"), kw),
                             "indicator": ind,
                             "data": cause,
-                            "source": f"Neo4j知识图谱 (病因)"
+                            "source": "Neo4j-KG(病因)"
                         })
-                    for treatment in decision.get("treatments", [])[:3]:
+                    for cons in decision.get("consequences", [])[:5]:
                         results.append({
-                            "type": "kg_treatment",
+                            "type": "kg_triple",
+                            "triple": (kw, cons.get("relation", "leads_to"), cons.get("consequence", "?")),
                             "indicator": ind,
-                            "data": treatment,
-                            "source": f"Neo4j知识图谱 (治疗)"
+                            "data": cons,
+                            "source": "Neo4j-KG(后果)"
+                        })
+                    for treat in decision.get("treatments", [])[:5]:
+                        results.append({
+                            "type": "kg_triple",
+                            "triple": (treat.get("treatment", "?"), treat.get("relation", "treats"), kw),
+                            "indicator": ind,
+                            "data": treat,
+                            "source": "Neo4j-KG(治疗)"
                         })
 
-            # 按药物查询
-            for drug in drugs[:2]:
+                # 2. 指标异常后果链
+                if intent_type in ("causal_query", "risk_query", "strategy_query"):
+                    consequences = self.neo4j_kg.find_indicator_abnormality_consequences(ind)
+                    for c in consequences[:5]:
+                        results.append({
+                            "type": "kg_triple",
+                            "triple": (c.get("indicator", ind), c.get("relation", "→"), c.get("consequence", "?")),
+                            "indicator": ind,
+                            "data": c,
+                            "source": "Neo4j-KG(异常后果链)"
+                        })
+
+            # 3. 药物效应查询
+            for drug in drugs[:3]:
                 effects = self.neo4j_kg.find_medication_effects(drug)
-                for eff in effects[:3]:
+                for eff in effects[:5]:
                     results.append({
-                        "type": "kg_drug_effect",
-                        "drug": drug,
+                        "type": "kg_triple",
+                        "triple": (eff.get("medication", drug), eff.get("relation", "→"), eff.get("target", "?")),
+                        "indicator": drug,
                         "data": eff,
-                        "source": f"Neo4j知识图谱 (药物效应)"
+                        "source": "Neo4j-KG(药物效应)"
                     })
+
+            # 4. 并发症治疗（针对策略/风险查询）
+            if intent_type in ("strategy_query", "risk_query"):
+                for ind in indicators[:2]:
+                    treatments = self.neo4j_kg.find_treatment_for_complication(ind)
+                    for t in treatments[:5]:
+                        results.append({
+                            "type": "kg_triple",
+                            "triple": (t.get("treatment", "?"), t.get("relation_type", "treats"), t.get("complication", ind)),
+                            "indicator": ind,
+                            "data": t,
+                            "source": "Neo4j-KG(并发症治疗)"
+                        })
+
         except Exception as e:
             logger.warning(f"Neo4j查询失败: {e}")
+            results.append({
+                "type": "kg_error",
+                "triple": None,
+                "data": {"error": str(e)},
+                "source": "Neo4j-KG(查询异常)"
+            })
 
         return results
 
     # ----- LLM 增强回答 -----
 
+    def _format_kg_triples(self, evidences: List[Dict]) -> str:
+        """将KG证据格式化为结构化三元组文本"""
+        triples = []
+        for ev in evidences:
+            if ev.get("type") == "kg_triple" and ev.get("triple"):
+                s, p, o = ev["triple"]
+                source_tag = ev.get("source", "KG")
+                triples.append(f"  ({s}) --[{p}]--> ({o})  [{source_tag}]")
+        if not triples:
+            return ""
+        return "\n".join(triples)
+
+    def _format_kb_evidences(self, evidences: List[Dict]) -> str:
+        """将知识库证据格式化为文本"""
+        lines = []
+        idx = 1
+        for ev in evidences:
+            if ev.get("type") == "kg_triple" or ev.get("type") == "kg_error":
+                continue
+            source = ev.get("source", "")
+            data = ev.get("data", {})
+            if isinstance(data, dict):
+                data_str = json.dumps(data, ensure_ascii=False)[:300]
+            else:
+                data_str = str(data)[:300]
+            lines.append(f"  [{idx}] ({source}) {data_str}")
+            idx += 1
+            if idx > 10:
+                break
+        return "\n".join(lines) if lines else ""
+
     def _llm_enhance(self, question: str, intent: Dict, evidences: List[Dict]) -> Optional[str]:
-        """使用LLM增强回答（基于检索到的证据）"""
+        """使用LLM基于KG三元组+知识库证据生成手术场景播报回答"""
         if not self.llm:
             self._last_llm_error = "LLM未配置（检查OPENAI_API_KEY和OPENAI_BASE_URL环境变量）"
             return None
 
         self._last_llm_error = None
         try:
-            # 构建证据上下文
-            evidence_text = ""
-            for i, ev in enumerate(evidences[:8], 1):
-                source = ev.get("source", "")
-                data = ev.get("data", {})
-                if isinstance(data, dict):
-                    data_str = json.dumps(data, ensure_ascii=False)[:200]
-                else:
-                    data_str = str(data)[:200]
-                evidence_text += f"[{i}] ({source}) {data_str}\n"
+            # 分离KG三元组 和 知识库证据
+            kg_text = self._format_kg_triples(evidences)
+            kb_text = self._format_kb_evidences(evidences)
 
-            if not evidence_text:
-                evidence_text = "当前无检索到的直接证据。请根据心脏移植灌注监测的专业知识回答。"
+            kg_section = kg_text if kg_text else "  （当前未从知识图谱中检索到相关三元组）"
+            kb_section = kb_text if kb_text else "  （当前未从知识库中检索到直接证据）"
 
-            prompt = f"""你是心脏移植灌注监测的临床决策支持专家。请基于以下检索到的证据，回答用户的问题。
+            indicators_str = ", ".join(intent.get("indicators", [])) or "未识别"
+            drugs_str = ", ".join(intent.get("drugs", [])) or "未涉及"
 
-## 要求
-1. 回答必须基于提供的证据，不要编造信息
-2. 引用证据来源，格式：[来源N]
-3. 给出具体的数值建议（如剂量、目标值）
-4. 如果证据不足，明确说明并给出保守建议
-5. 使用中文回答，简洁专业
+            prompt = f"""# 角色
+你是HTTG（心脏移植术后灌注监测）的临床决策支持AI，部署在手术室/ICU的实时监护系统中。
+你的回答将直接用于术中/术后的语音播报，辅助灌注师和主刀医生做出即时决策。
+
+# 场景
+心脏移植手术围术期，患者处于体外循环脱机后或ICU早期恢复阶段。
+灌注师/医生通过语音或文字提出临床问题，你需要结合知识图谱中的结构化因果关系和临床知识库给出精准回答。
+
+# 输入
 
 ## 用户问题
 {question}
 
-## 意图识别
-- 类型: {intent.get('intent', 'general')}
-- 涉及指标: {', '.join(intent.get('indicators', []))}
-- 涉及药物: {', '.join(intent.get('drugs', []))}
+## 意图分析
+- 意图类型: {intent.get("intent", "general_qa")}
+- 涉及指标: {indicators_str}
+- 涉及药物: {drugs_str}
 
-## 检索到的证据
-{evidence_text}
+## 知识图谱三元组（来自Neo4j，结构化因果/治疗关系）
+{kg_section}
 
-## 回答"""
+## 知识库证据（来自临床共识/干预策略/阈值配置）
+{kb_section}
 
-            response = self.llm.generate(prompt, temperature=0.2, max_tokens=1000)
-            if response and len(response.strip()) > 10:
+# 输出要求
+
+请严格按以下结构输出，适合语音播报的简洁专业风格：
+
+**【判断】** 一句话概括当前情况和严重程度
+
+**【机制】** 基于知识图谱三元组，用1-2句话说明病理生理机制链（引用三元组关系）
+
+**【处置建议】**
+- 首选方案：药物名称 + 具体剂量 + 给药途径 + 滴定目标
+- 替代方案（如有）：简述
+- 监测频率：需要关注的指标及频率
+
+**【注意事项】** 药物相互作用、禁忌症、升级指征（1-2条关键点）
+
+**【证据等级】** 说明本回答基于哪些来源（KG三元组N条 / 共识知识库N条 / 临床经验）
+
+# 约束
+1. 剂量、阈值等数值必须来自提供的证据，不可编造
+2. 如果知识图谱和知识库证据不足，明确标注"基于临床经验补充"
+3. 输出面向手术室播报，避免冗长，每段不超过3句话
+4. 使用中文"""
+
+            response = self.llm.generate(prompt, temperature=0.15, max_tokens=1200)
+            if response and len(response.strip()) > 20:
                 return response.strip()
             else:
-                self._last_llm_error = f"LLM返回空响应"
+                self._last_llm_error = "LLM返回空响应"
         except Exception as e:
             self._last_llm_error = f"LLM调用失败: {e}"
             logger.warning(f"LLM增强失败: {e}")
@@ -1216,6 +1315,25 @@ with col_output:
         llm_err = result.get("llm_error")
         if llm_err:
             st.warning(f"LLM未参与回答: {llm_err}")
+
+        # KG三元组证据溯源
+        kg_triples = [e for e in result.get("_evidences", []) if e.get("type") == "kg_triple" and e.get("triple")]
+        if kg_triples:
+            with st.expander(f"🔬 知识图谱证据溯源 ({len(kg_triples)} 条三元组)", expanded=False):
+                for tr in kg_triples:
+                    s, p, o = tr["triple"]
+                    src = tr.get("source", "KG")
+                    st.markdown(
+                        f'<div style="font-family:monospace; padding:4px 10px; margin:3px 0; '
+                        f'border-left:3px solid #1890ff; background:var(--secondary-background-color,#f0f5ff); '
+                        f'border-radius:0 4px 4px 0;">'
+                        f'<span style="color:#1890ff;">{s}</span> '
+                        f'──<span style="color:#722ed1;">{p}</span>──▸ '
+                        f'<span style="color:#52c41a;">{o}</span> '
+                        f'<span style="opacity:0.5; font-size:0.8em;">({src})</span>'
+                        f'</div>',
+                        unsafe_allow_html=True
+                    )
 
         # 来源标注
         if result["sources"]:
