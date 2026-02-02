@@ -142,7 +142,14 @@ class OpenAILLM(LLMInterface):
     def __init__(self, api_key: str = None, model: str = None, base_url: str = None):
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         self.model = model or os.getenv("LLM_MODEL", "gpt-4")
-        self.base_url = base_url or os.getenv("OPENAI_BASE_URL")
+        raw_url = base_url or os.getenv("OPENAI_BASE_URL")
+        # 自动修正: 去掉末尾的 /chat/completions（OpenAI SDK会自动追加）
+        if raw_url:
+            for suffix in ["/chat/completions", "/completions"]:
+                if raw_url.rstrip("/").endswith(suffix):
+                    raw_url = raw_url.rstrip("/")[: -len(suffix)]
+                    break
+        self.base_url = raw_url
         self._client = None
 
     def _get_client(self):
