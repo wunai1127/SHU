@@ -78,6 +78,19 @@ try:
 except ImportError:
     pass
 
+# 导入灌注算法模块
+try:
+    from perfusion_algorithms import (
+        SetpointReadoutCausalOptimizer,
+        CUSUMDetector,
+        CompositePerfusionRiskScore,
+        LactateTrajectoryPredictor,
+        run_all_algorithms,
+    )
+    ALGO_AVAILABLE = True
+except ImportError:
+    ALGO_AVAILABLE = False
+
 
 @st.cache_resource
 def init_neo4j():
@@ -913,6 +926,300 @@ def calculate_risk_level(data: Dict[str, float]) -> str:
         return "LOW"
 
 # =============================================================================
+# 算法分析面板
+# =============================================================================
+def _extract_time_series(patient_data: Dict, selected_timepoint: str):
+    """提取从baseline到当前时间点的时序数据"""
+    all_tps = ["baseline", "60min", "120min", "180min", "240min"]
+    all_mins = [0, 60, 120, 180, 240]
+    idx = all_tps.index(selected_timepoint) + 1
+    active_tps = all_tps[:idx]
+    time_mins = all_mins[:idx]
+
+    indicators = set()
+    for tp in active_tps:
+        indicators.update(patient_data.get(tp, {}).keys())
+
+    series = {}
+    for ind in indicators:
+        vals = [patient_data.get(tp, {}).get(ind) for tp in active_tps]
+        if all(v is not None for v in vals):
+            series[ind] = vals
+    return time_mins, series
+
+
+def render_algorithm_panel(patient_data: Dict, current_data: Dict, selected_timepoint: str):
+    """渲染智能算法分析面板"""
+    if not ALGO_AVAILABLE:
+        st.info("算法模块未加载")
+        return
+
+    st.markdown("### 🧠 智能算法分析")
+
+    time_mins, time_series = _extract_time_series(patient_data, selected_timepoint)
+
+    # 运行所有算法
+    algo_results = run_all_algorithms(
+        current_data=current_data,
+        time_series=time_series,
+        time_points=time_mins,
+    )
+
+    tab_srco, tab_cprs, tab_cusum, tab_lactate = st.tabs([
+        "🎯 SRCO调控优化", "📊 CPRS风险评分", "📈 CUSUM早期预警", "🔬 乳酸轨迹预测"
+    ])
+
+    with tab_srco:
+        _render_srco(algo_results.get("srco", []))
+
+    with tab_cprs:
+        _render_cprs(algo_results.get("cprs", {}))
+
+    with tab_cusum:
+        _render_cusum(algo_results.get("cusum", {}), time_mins)
+
+    with tab_lactate:
+        _render_lactate(algo_results.get("lactate_prediction", {}),
+                        time_series.get("Lactate", []), time_mins)
+
+
+def _render_srco(srco_results: List[Dict]):
+    """渲染SRCO调控优化结果"""
+    st.markdown("**SRCO算法**: 基于因果图反向推理，计算各Setpoint调控收益")
+
+    if not srco_results:
+        st.success("✅ 所有Readout正常，无需调控优化")
+        return
+
+    # 收益排名条形图
+    if go:
+        names = [f"{r['setpoint']} (P{r['priority']})" for r in srco_results[:8]]
+        scores = [r['benefit_score'] for r in srco_results[:8]]
+        colors = ['#ff4d4f' if s > 0.3 else '#faad14' if s > 0.1 else '#52c41a' for s in scores]
+
+        fig = go.Figure(go.Bar(
+            x=scores, y=names, orientation='h',
+            marker_color=colors,
+            text=[f"{s:.3f}" for s in scores],
+            textposition='outside'
+        ))
+        fig.update_layout(
+            title="Setpoint调控收益排序 (Benefit Score)",
+            xaxis_title="收益分数",
+            yaxis=dict(autorange="reversed"),
+            height=max(200, 40 * len(names)),
+            margin=dict(l=140, r=50, t=40, b=30)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    # 详细推荐卡片
+    for rec in srco_results[:5]:
+        dir_emoji = "⬆️" if rec['direction'] == "increase" else "⬇️"
+        with st.expander(f"{dir_emoji} {rec['setpoint']} | 收益={rec['benefit_score']:.4f} | 影响{rec['readout_count']}个Readout"):
+            st.markdown(f"**建议方向:** {'增大' if rec['direction'] == 'increase' else '减小'}")
+            st.markdown(f"**优先级:** P{rec['priority']}")
+            st.markdown(f"**因果推理:** {rec['reasoning']}")
+            if rec.get('affected_readouts'):
+                st.markdown("**影响的Readout:**")
+                for ar in rec['affected_readouts'][:5]:
+                    st.caption(f"  → {ar['readout']}: 偏离{ar['deviation']:.0%}, 权重{ar['weight']}, {ar['mechanism']}")
+
+
+def _render_cprs(cprs_result: Dict):
+    """渲染CPRS综合风险评分"""
+    st.markdown("**CPRS算法**: 多指标加权融合，计算0-100综合灌注风险分数")
+
+    if not cprs_result:
+        st.info("无法计算CPRS")
+        return
+
+    score = cprs_result.get('total_score', 0)
+    level = cprs_result.get('risk_level', 'UNKNOWN')
+    level_colors = {"LOW": "#52c41a", "MEDIUM": "#faad14", "HIGH": "#ff7a45", "CRITICAL": "#ff4d4f"}
+    level_labels = {"LOW": "低风险", "MEDIUM": "中风险", "HIGH": "高风险", "CRITICAL": "极高风险"}
+    color = level_colors.get(level, "#8c8c8c")
+
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        st.markdown(f"""
+        <div style="text-align:center; padding:1.2rem; background:{color}15; border:3px solid {color}; border-radius:15px;">
+            <div style="font-size:0.9rem; color:{color}; font-weight:bold;">CPRS 综合风险</div>
+            <div style="font-size:3.5rem; font-weight:bold; color:{color};">{score:.0f}</div>
+            <div style="font-size:1.1rem; color:{color};">{level_labels.get(level, level)}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col2:
+        # 领域雷达图
+        if go:
+            domains = cprs_result.get('domain_scores', {})
+            if domains:
+                categories = [d['label'] for d in domains.values()]
+                values = [d['score'] for d in domains.values()]
+                categories.append(categories[0])
+                values.append(values[0])
+
+                fig = go.Figure(go.Scatterpolar(
+                    r=values, theta=categories,
+                    fill='toself',
+                    fillcolor=f'{color}30',
+                    line_color=color,
+                    marker=dict(size=8)
+                ))
+                fig.update_layout(
+                    polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
+                    height=280,
+                    margin=dict(l=60, r=60, t=20, b=20),
+                    showlegend=False,
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
+    # 风险贡献排名
+    if cprs_result.get('top_risks'):
+        st.markdown("**风险贡献排名:**")
+        for tr in cprs_result['top_risks'][:5]:
+            risk_pct = tr['risk'] * 100
+            st.markdown(f"- **{tr['indicator']}**: 风险={risk_pct:.0f}%, 贡献={tr['contribution']:.3f}")
+
+
+def _render_cusum(cusum_results: Dict, time_mins: List[int]):
+    """渲染CUSUM早期预警"""
+    st.markdown("**CUSUM算法**: 累积和控制图，在阈值突破前检测趋势性恶化")
+
+    if not cusum_results:
+        st.info("需要至少2个时间点的数据才能进行CUSUM分析")
+        return
+
+    alarm_count = sum(1 for r in cusum_results.values() if r.get('alarm'))
+    if alarm_count:
+        st.error(f"⚠️ {alarm_count} 个指标触发CUSUM预警!")
+    else:
+        st.success("✅ 所有监测指标CUSUM趋势正常")
+
+    # 状态网格
+    cols = st.columns(min(len(cusum_results), 4) or 1)
+    for i, (indicator, result) in enumerate(cusum_results.items()):
+        with cols[i % 4]:
+            alarm = result.get('alarm', False)
+            severity = result.get('severity', 0)
+            trend = result.get('trend', 'stable')
+            trend_emoji = {"worsening": "📈⚠️", "improving": "📉✅", "stable": "➡️"}.get(trend, "❓")
+            bg = "#ff4d4f" if alarm else "#faad14" if severity > 0.5 else "#52c41a"
+
+            st.markdown(f"""
+            <div style="background:{bg}18; border:2px solid {bg}; border-radius:8px; padding:0.6rem; text-align:center; margin-bottom:0.5rem;">
+                <div style="font-weight:bold; font-size:0.85rem;">{indicator}</div>
+                <div style="font-size:1.3rem;">{trend_emoji}</div>
+                <div style="font-size:0.75rem;">严重度: {severity:.0%}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # CUSUM曲线图（仅对有预警风险的指标）
+    if go:
+        alarming = {k: v for k, v in cusum_results.items() if v.get('severity', 0) > 0.3}
+        if alarming:
+            fig = make_subplots(rows=len(alarming), cols=1, shared_xaxes=True,
+                                subplot_titles=list(alarming.keys()), vertical_spacing=0.12)
+            for idx, (ind, result) in enumerate(alarming.items(), 1):
+                cusum_upper = result.get('cusum_upper', [])
+                cusum_lower = result.get('cusum_lower', [])
+                h = result.get('threshold_h', 1)
+                x_vals = time_mins[:len(cusum_upper)]
+
+                fig.add_trace(go.Scatter(x=x_vals, y=cusum_upper, name=f'{ind} S⁺',
+                                         line=dict(color='#ff4d4f', width=2)), row=idx, col=1)
+                fig.add_trace(go.Scatter(x=x_vals, y=cusum_lower, name=f'{ind} S⁻',
+                                         line=dict(color='#1890ff', width=2)), row=idx, col=1)
+                fig.add_hline(y=h, line_dash="dash", line_color="red",
+                              annotation_text="阈值h", row=idx, col=1)
+
+            fig.update_layout(height=200 * len(alarming), showlegend=True,
+                              margin=dict(l=50, r=20, t=30, b=30))
+            st.plotly_chart(fig, use_container_width=True)
+
+
+def _render_lactate(lactate_result: Dict, historical: List[float], time_mins: List[int]):
+    """渲染乳酸轨迹预测"""
+    st.markdown("**乳酸轨迹预测**: 指数衰减模型，预测乳酸清除速率和达标时间")
+
+    if not lactate_result or lactate_result.get('trend') == 'unknown':
+        st.info("需要乳酸时间序列数据才能预测")
+        return
+
+    quality = lactate_result.get('clearance_quality', 'unknown')
+    quality_colors = {"good": "#52c41a", "marginal": "#faad14", "poor": "#ff7a45", "worsening": "#ff4d4f"}
+    quality_labels = {"good": "良好", "marginal": "边缘", "poor": "不良", "worsening": "恶化"}
+    color = quality_colors.get(quality, "#8c8c8c")
+
+    # 关键指标
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        cr = lactate_result.get('clearance_rate', 0)
+        st.metric("清除率", f"{cr:.1f}%/h",
+                  delta="良好" if cr > 10 else "偏低",
+                  delta_color="normal" if cr > 10 else "inverse")
+    with col2:
+        hl = lactate_result.get('half_life', 0)
+        st.metric("半衰期", f"{hl:.0f} min" if hl > 0 else "N/A")
+    with col3:
+        pred_time = lactate_result.get('predicted_target_time')
+        st.metric("预计达标", f"{pred_time:.0f} min" if pred_time and pred_time > 0 else "N/A")
+    with col4:
+        st.markdown(f"""
+        <div style="text-align:center; padding:0.5rem; background:{color}20; border:2px solid {color}; border-radius:8px;">
+            <div style="font-size:0.8rem;">清除质量</div>
+            <div style="font-size:1.1rem; font-weight:bold; color:{color};">{quality_labels.get(quality, quality)}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # 轨迹图
+    if go and (historical or lactate_result.get('predicted_values')):
+        fig = go.Figure()
+
+        # 历史实测值
+        if historical and time_mins:
+            fig.add_trace(go.Scatter(
+                x=time_mins, y=historical,
+                mode='lines+markers', name='实测值',
+                line=dict(color='#1890ff', width=3),
+                marker=dict(size=10)
+            ))
+
+        # 预测轨迹
+        predicted = lactate_result.get('predicted_values', [])
+        if predicted:
+            pred_x = [p['time_min'] for p in predicted]
+            pred_y = [p['predicted_lactate'] for p in predicted]
+            fig.add_trace(go.Scatter(
+                x=pred_x, y=pred_y,
+                mode='lines', name='预测轨迹',
+                line=dict(color='#722ed1', width=2, dash='dash'),
+                fill='tozeroy', fillcolor='rgba(114,46,209,0.05)'
+            ))
+
+        # 目标线
+        target = lactate_result.get('target', 2.0)
+        fig.add_hline(y=target, line_dash="dot", line_color="green",
+                      annotation_text=f"目标 {target}")
+        fig.add_hline(y=5.0, line_dash="dash", line_color="red",
+                      annotation_text="OCS可接受上限 5.0")
+
+        fig.update_layout(
+            title="乳酸清除轨迹 & 预测",
+            xaxis_title="时间 (min)",
+            yaxis_title="Lactate (mmol/L)",
+            height=320,
+            margin=dict(l=50, r=20, t=40, b=30)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    # 结论
+    msg = lactate_result.get('message', '')
+    if msg:
+        st.info(f"💡 {msg}")
+
+
+# =============================================================================
 # 主应用
 # =============================================================================
 def main():
@@ -1096,6 +1403,11 @@ def main():
             render_strategy_panel(recommendations)
 
     st.markdown("---")
+
+    # 智能算法分析面板
+    if ALGO_AVAILABLE:
+        render_algorithm_panel(patient, current_data, selected_timepoint)
+        st.markdown("---")
 
     # Agent处理日志 / 证据面板
     if agent_state:
