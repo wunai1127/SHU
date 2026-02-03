@@ -412,18 +412,27 @@ SETPOINT_CONFIG = {
     },
 }
 
-# ------ 功能观测指标 (Readouts) — 间接反映灌注质量 ------
-READOUT_CONFIG = {
+# ------ 血气观测指标 (Blood Gas Readouts) — 反映代谢和氧合状态 ------
+READOUT_BLOOD_GAS_CONFIG = {
     "Lactate": {"name": "乳酸", "unit": "mmol/L", "target": (0, 4.0), "red_line": 6.0, "critical": 4.0, "higher_is_worse": True},
     "pH": {"name": "动脉pH", "unit": "", "target": (7.25, 7.35), "red_line": 7.15, "critical": 7.20},
     "K_A": {"name": "动脉血钾", "unit": "mmol/L", "target": (3.5, 5.0), "red_line": 6.0, "critical": 5.5, "higher_is_worse": True},
-    "EF": {"name": "射血分数", "unit": "%", "target": (18, 60), "red_line": 10, "critical": 18},
-    "CI": {"name": "心指数", "unit": "L/min/m²", "target": (2.2, 4.0), "red_line": 1.8, "critical": 2.0},
     "SvO2": {"name": "混合静脉血氧饱和度", "unit": "%", "target": (65, 80), "red_line": 50, "critical": 60},
     "CvO2": {"name": "静脉血氧含量", "unit": "mL/dL", "target": (12, 16), "red_line": 8, "critical": 10},
+}
+
+# ------ 心功能观测指标 (Cardiac Function Readouts) — 反映心脏收缩/舒张功能 ------
+READOUT_FUNCTION_CONFIG = {
+    "EF": {"name": "射血分数", "unit": "%", "target": (18, 60), "red_line": 10, "critical": 18},
+    "CI": {"name": "心指数", "unit": "L/min/m²", "target": (2.2, 4.0), "red_line": 1.8, "critical": 2.0},
     "MVO2": {"name": "心肌氧耗", "unit": "mLO₂/min/100g", "target": (8.8, 20), "red_line": 5, "critical": 8.8},
     "dPdt_max": {"name": "最大dP/dt", "unit": "mmHg/s", "target": (1200, 1800), "red_line": 800, "critical": 1000},
 }
+
+# ------ 合并所有Readout配置（兼容旧代码） ------
+READOUT_CONFIG = {}
+READOUT_CONFIG.update(READOUT_BLOOD_GAS_CONFIG)
+READOUT_CONFIG.update(READOUT_FUNCTION_CONFIG)
 
 # ------ 移植评估/术后指标 ------
 TRANSPLANT_CONFIG = {
@@ -527,7 +536,7 @@ def _render_indicator_card(indicator: str, value: float, baseline_val: float, co
 
 
 def render_status_cards(data: Dict[str, float], baseline: Dict[str, float]):
-    """渲染状态卡片 — 灌注调控参数(Setpoints)优先 + 功能观测指标(Readouts)"""
+    """渲染状态卡片 — 灌注调控参数(Setpoints)优先 + 功能观测指标(Readouts)分血气/功能两部分"""
 
     # ===== 灌注调控参数 (Setpoints) =====
     st.markdown(
@@ -545,20 +554,36 @@ def render_status_cards(data: Dict[str, float], baseline: Dict[str, float]):
             config = SETPOINT_CONFIG[indicator]
             _render_indicator_card(indicator, value, baseline_val, config, show_device=True)
 
-    # ===== 功能观测指标 (Readouts) =====
+    # ===== 血气观测指标 (Blood Gas Readouts) =====
     st.markdown(
-        '<div style="padding:6px 12px; margin:12px 0 8px 0; border-left:4px solid #722ed1; '
-        'background:rgba(114,46,209,0.06); border-radius:0 6px 6px 0;">'
-        '<strong>📊 功能观测指标 (Readouts)</strong> — 反映灌注质量，通过调整Setpoints间接优化</div>',
+        '<div style="padding:6px 12px; margin:12px 0 8px 0; border-left:4px solid #52c41a; '
+        'background:rgba(82,196,26,0.06); border-radius:0 6px 6px 0;">'
+        '<strong>🩸 血气观测指标 (Blood Gas)</strong> — 反映代谢和氧合状态</div>',
         unsafe_allow_html=True
     )
-    readout_keys = [k for k in READOUT_CONFIG if k in data]
-    cols2 = st.columns(min(len(readout_keys), 4) or 4)
-    for i, indicator in enumerate(readout_keys):
+    blood_gas_keys = [k for k in READOUT_BLOOD_GAS_CONFIG if k in data]
+    cols2 = st.columns(min(len(blood_gas_keys), 4) or 4)
+    for i, indicator in enumerate(blood_gas_keys):
         with cols2[i % 4]:
             value = data.get(indicator, 0)
             baseline_val = baseline.get(indicator, value)
-            config = READOUT_CONFIG[indicator]
+            config = READOUT_BLOOD_GAS_CONFIG[indicator]
+            _render_indicator_card(indicator, value, baseline_val, config)
+
+    # ===== 心功能观测指标 (Cardiac Function Readouts) =====
+    st.markdown(
+        '<div style="padding:6px 12px; margin:12px 0 8px 0; border-left:4px solid #722ed1; '
+        'background:rgba(114,46,209,0.06); border-radius:0 6px 6px 0;">'
+        '<strong>💓 心功能观测指标 (Cardiac Function)</strong> — 反映心脏收缩/舒张功能</div>',
+        unsafe_allow_html=True
+    )
+    function_keys = [k for k in READOUT_FUNCTION_CONFIG if k in data]
+    cols3 = st.columns(min(len(function_keys), 4) or 4)
+    for i, indicator in enumerate(function_keys):
+        with cols3[i % 4]:
+            value = data.get(indicator, 0)
+            baseline_val = baseline.get(indicator, value)
+            config = READOUT_FUNCTION_CONFIG[indicator]
             _render_indicator_card(indicator, value, baseline_val, config)
 
 def render_time_series(patient_data: Dict[str, Any], selected_indicators: List[str]):
@@ -1261,9 +1286,11 @@ def main():
         st.markdown("### 📈 趋势图指标")
         st.caption("🎛 调控参数")
         setpoint_list = list(SETPOINT_CONFIG.keys())
-        st.caption("📊 观测指标")
-        readout_list = list(READOUT_CONFIG.keys())
-        available_indicators = setpoint_list + readout_list + list(TRANSPLANT_CONFIG.keys())
+        st.caption("🩸 血气观测")
+        blood_gas_list = list(READOUT_BLOOD_GAS_CONFIG.keys())
+        st.caption("💓 心功能观测")
+        function_list = list(READOUT_FUNCTION_CONFIG.keys())
+        available_indicators = setpoint_list + blood_gas_list + function_list + list(TRANSPLANT_CONFIG.keys())
         selected_indicators = st.multiselect(
             "选择显示的指标",
             available_indicators,
