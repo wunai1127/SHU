@@ -42,11 +42,14 @@ class OpenAIEduAgent(BaseEduAgent):
             os.getenv('LLM_API_KEY') or
             os.getenv('OPENAI_API_KEY', '')
         )
-        self.base_url = (
+
+        # 获取并清理base_url
+        raw_base_url = (
             llm_config.get('base_url') or
             os.getenv('LLM_BASE_URL') or
-            os.getenv('OPENAI_BASE_URL', 'https://api.deepseek.com/v1')
+            os.getenv('OPENAI_BASE_URL', 'https://api.deepseek.com')
         )
+        self.base_url = self._clean_base_url(raw_base_url)
         self.model = (
             llm_config.get('model') or
             os.getenv('LLM_MODEL') or
@@ -70,6 +73,42 @@ class OpenAIEduAgent(BaseEduAgent):
 
         # 初始化客户端
         self._client = None
+
+    @staticmethod
+    def _clean_base_url(url: str) -> str:
+        """
+        清理base_url，移除多余的路径
+
+        OpenAI客户端会自动添加 /chat/completions
+        所以base_url应该只包含基础地址，如：
+        - https://api.deepseek.com
+        - https://api.deepseek.com/v1
+        - https://api.openai.com/v1
+
+        不应该包含：
+        - /chat/completions
+        - /completions
+        """
+        if not url:
+            return 'https://api.deepseek.com'
+
+        url = url.rstrip('/')
+
+        # 移除常见的多余路径
+        suffixes_to_remove = [
+            '/chat/completions',
+            '/completions',
+            '/v1/chat/completions',
+            '/v1/completions'
+        ]
+
+        for suffix in suffixes_to_remove:
+            if url.endswith(suffix):
+                url = url[:-len(suffix)]
+                break
+
+        # 确保URL不以斜杠结尾
+        return url.rstrip('/')
 
     @property
     def client(self):
