@@ -118,6 +118,18 @@ INDICATOR_TO_KG_MAPPING = {
     "Cardiac_Denervation": ["cardiac denervation", "chronotropic incompetence", "transplant heart"],
     "Acute_Rejection": ["acute cellular rejection", "humoral rejection", "graft rejection"],
     "CMV_Infection": ["CMV infection", "transplant vasculopathy", "graft vascular disease"],
+
+    # 灌注调控参数 (Setpoints)
+    "Flow_Low": ["low perfusion flow", "tissue hypoperfusion", "inadequate cardiac output"],
+    "Flow_High": ["high perfusion flow", "hemodilution", "tissue edema"],
+    "Temperature_Low": ["hypothermia", "cold perfusion", "metabolic suppression"],
+    "Temperature_High": ["hyperthermia", "rewarming injury", "tissue damage"],
+    "AoDP_Low": ["low perfusion pressure", "coronary hypoperfusion", "myocardial ischemia"],
+    "PaO2_Low": ["hypoxemia", "inadequate oxygenation", "tissue hypoxia"],
+    "Hemoglobin_Low": ["anemia", "low oxygen carrying capacity", "hemodilution"],
+    "pH_Low": ["acidosis", "metabolic acidosis", "lactic acidosis"],
+    "pH_High": ["alkalosis", "metabolic alkalosis", "respiratory alkalosis"],
+    "MVO2_Low": ["low myocardial oxygen consumption", "myocardial hibernation", "cardiac depression"],
 }
 
 
@@ -230,12 +242,28 @@ class BaselineThresholds:
         alert_level = AlertLevel.NORMAL
         threshold_description = "正常"
 
-        # 检查critical
-        if 'critical' in thresholds:
-            crit = thresholds['critical']
-            if self._check_condition(value, crit):
-                alert_level = AlertLevel.CRITICAL
-                threshold_description = crit.get('description', '危急')
+        # 检查critical / critical_low / critical_high
+        for key in ['critical', 'critical_low', 'critical_high']:
+            if key in thresholds:
+                crit = thresholds[key]
+                if self._check_condition(value, crit):
+                    alert_level = AlertLevel.CRITICAL
+                    threshold_description = crit.get('description', '危急')
+                    break
+
+        # 检查reject（用于EF等有accept/reject的指标，优先于warning）
+        if alert_level == AlertLevel.NORMAL and 'reject' in thresholds:
+            rej = thresholds['reject']
+            if self._check_condition(value, rej):
+                alert_level = AlertLevel.RED_LINE
+                threshold_description = rej.get('description', '不合格')
+
+        # 检查contraindication（移植禁忌）
+        if alert_level == AlertLevel.NORMAL and 'contraindication' in thresholds:
+            contra = thresholds['contraindication']
+            if self._check_condition(value, contra):
+                alert_level = AlertLevel.RED_LINE
+                threshold_description = contra.get('description', '禁忌')
 
         # 检查red_line
         if alert_level == AlertLevel.NORMAL:
@@ -256,13 +284,6 @@ class BaselineThresholds:
                         alert_level = AlertLevel.WARNING
                         threshold_description = warn.get('description', '警戒')
                         break
-
-        # 检查reject（用于EF等有accept/reject的指标）
-        if alert_level == AlertLevel.NORMAL and 'reject' in thresholds:
-            rej = thresholds['reject']
-            if self._check_condition(value, rej):
-                alert_level = AlertLevel.RED_LINE
-                threshold_description = rej.get('description', '不合格')
 
         # 计算偏离
         deviation = None
@@ -320,12 +341,15 @@ class BaselineThresholds:
     def _assess_trend(self, indicator: str, deviation: float) -> TrendDirection:
         """评估趋势方向"""
         # 需要增加为好的指标
-        increase_is_good = ['EF', 'CI', 'MAP', 'SvO2', 'CF', 'AOP', 'GFR', 'CrCl', 'PeakVO2']
+        increase_is_good = ['EF', 'CI', 'MAP', 'SvO2', 'CF', 'AOP', 'GFR', 'CrCl', 'PeakVO2',
+                            'MVO2', 'CvO2', 'pO2V', 'pH']
         # 需要减少为好的指标
         decrease_is_good = ['Lactate', 'PVR', 'chest_drainage', 'TPG', 'PASP',
                            'Creatinine', 'Bilirubin', 'ColdIschemiaTime']
-        # 维持在目标范围内为好的指标
-        maintain_target = ['K_A', 'Na_A', 'GluA', 'HR', 'MPA_Trough']
+        # 维持在目标范围内为好的指标 (Setpoints + bidirectional indicators)
+        maintain_target = ['K_A', 'Na_A', 'GluA', 'HR', 'MPA_Trough',
+                          'Flow', 'Temperature', 'AoDP', 'PaO2',
+                          'Hemoglobin', 'PacingRate', 'Dobutamine', 'Insulin']
 
         baseline_config = self.get_baseline(indicator)
         acceptable_dev = 0
@@ -334,6 +358,29 @@ class BaselineThresholds:
 
         if abs(deviation) <= acceptable_dev:
             return TrendDirection.STABLE
+
+        if indicator in maintain_target:
+            # For Setpoints and bidirectional indicators, evaluate against target range
+            config = self.get_threshold_config(indicator)
+            if config:
+                thresholds = config.get('thresholds', {})
+                target = thresholds.get('target', {})
+                if 'min' in target and 'max' in target:
+                    baseline_val = None
+                    if baseline_config:
+                        baseline_val = baseline_config.get('baseline_value')
+                    current_approx = (baseline_val + deviation) if baseline_val is not None else None
+                    if current_approx is not None:
+                        target_mid = (target['min'] + target['max']) / 2
+                        dist_before = abs((baseline_val or 0) - target_mid)
+                        dist_after = abs(current_approx - target_mid)
+                        if dist_after < dist_before:
+                            return TrendDirection.IMPROVING
+                        elif dist_after > dist_before:
+                            return TrendDirection.DETERIORATING
+                        return TrendDirection.STABLE
+            # Fallback: any deviation beyond acceptable is deteriorating
+            return TrendDirection.DETERIORATING if abs(deviation) > acceptable_dev else TrendDirection.STABLE
 
         if indicator in increase_is_good:
             return TrendDirection.IMPROVING if deviation > 0 else TrendDirection.DETERIORATING
@@ -585,7 +632,7 @@ def test_baseline_thresholds():
     print("Baseline Thresholds Test")
     print("=" * 60)
 
-    # 测试数据
+    # 测试数据 - Readouts + Setpoints
     test_indicators = {
         'EF': 45,       # 灰区
         'CI': 1.8,      # 低于红线
@@ -594,6 +641,13 @@ def test_baseline_thresholds():
         'K_A': 6.2,     # 高钾警戒
         'SvO2': 55,     # 低于红线
         'HR': 115,      # 警戒范围
+        # Setpoints
+        'Flow': 3.6,        # 低于红线
+        'Temperature': 35,  # 正常范围
+        'AoDP': 28,         # 灌注压偏低
+        'PaO2': 70,         # 偏低
+        'Hemoglobin': 32,   # 严重贫血
+        'pH': 7.18,         # 酸中毒
     }
 
     print("\n### Individual Threshold Checks ###")

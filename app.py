@@ -452,8 +452,41 @@ INDICATOR_CONFIG.update(SETPOINT_CONFIG)
 INDICATOR_CONFIG.update(READOUT_CONFIG)
 INDICATOR_CONFIG.update(TRANSPLANT_CONFIG)
 
+@st.cache_resource
+def _get_baseline_thresholds():
+    """获取BaselineThresholds单例"""
+    if BACKEND_AVAILABLE:
+        try:
+            return BaselineThresholds()
+        except Exception:
+            return None
+    return None
+
+
 def get_status(indicator: str, value: float) -> Tuple[str, str]:
-    """获取指标状态"""
+    """
+    获取指标状态 — 优先使用YAML配置的BaselineThresholds，回退到硬编码配置
+
+    Returns:
+        (status_str, emoji): 如 ("critical", "🔴")
+    """
+    bt = _get_baseline_thresholds()
+
+    # 优先使用YAML-based threshold system
+    if bt is not None:
+        threshold_config = bt.get_threshold_config(indicator)
+        if threshold_config is not None:
+            from baseline_thresholds import AlertLevel as BT_AlertLevel
+            result = bt.check_threshold(indicator, value)
+            level_map = {
+                BT_AlertLevel.CRITICAL: ("critical", "🔴"),
+                BT_AlertLevel.RED_LINE: ("critical", "🔴"),
+                BT_AlertLevel.WARNING: ("warning", "🟡"),
+                BT_AlertLevel.NORMAL: ("normal", "🟢"),
+            }
+            return level_map.get(result.alert_level, ("warning", "🟡"))
+
+    # Fallback: 硬编码配置
     config = INDICATOR_CONFIG.get(indicator, {})
     target = config.get("target", (0, 100))
     red_line = config.get("red_line")

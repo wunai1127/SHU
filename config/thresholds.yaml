@@ -914,3 +914,323 @@ transplant_consensus:
         description: "未达治疗剂量"
     baseline_reference: 2.0
     notes: "共识：<1.5mg/L未达治疗剂量"
+
+# -----------------------------------------------------------------------------
+# 11. 灌注调控参数 (Perfusion Setpoints)
+# -----------------------------------------------------------------------------
+perfusion_setpoints:
+  # 灌注流量 (Perfusion Flow)
+  Flow:
+    name: "灌注流量"
+    name_en: "Perfusion Flow"
+    unit: "L/min"
+    confidence: high
+    status: confirmed
+    indicator_type: setpoint
+    source:
+      - "CPB操作规范"
+      - "中国心脏移植共识2019 - CPB流速4.2-4.8L/min"
+    thresholds:
+      target:
+        min: 4.2
+        max: 4.8
+        description: "CPB标准灌注流量"
+      warning:
+        operator: "<"
+        value: 3.8
+        description: "流量偏低，组织灌注可能不足"
+      red_line:
+        operator: "<"
+        value: 3.5
+        description: "流量严重不足，需立即调整"
+      warning_high:
+        operator: ">"
+        value: 5.2
+        description: "流量偏高，注意水肿风险"
+    baseline_reference: 4.5
+    control: "离心泵/滚压泵转速"
+    device: "CPB泵"
+    escalation_rule: "Flow<3.8→检查管路/泵转速; Flow<3.5→立即调整泵参数+检查储血罐液面"
+    notes: "共识：CPB期间流速4.2-4.8 L/min; 流量直接影响DO2和组织灌注"
+
+  # 灌注温度 (Perfusion Temperature)
+  Temperature:
+    name: "灌注温度"
+    name_en: "Perfusion Temperature"
+    unit: "°C"
+    confidence: high
+    status: confirmed
+    indicator_type: setpoint
+    source:
+      - "CPB温度管理指南"
+      - "体外循环操作规范"
+    thresholds:
+      target:
+        min: 34
+        max: 37
+        description: "常温灌注目标范围"
+      hypothermic_phase:
+        min: 20
+        max: 28
+        description: "低温保护阶段"
+      rewarming_target:
+        min: 36
+        max: 37
+        description: "复温目标"
+      warning_high:
+        operator: ">"
+        value: 38
+        description: "过热警告，可能导致组织损伤"
+    baseline_reference: 22.0
+    control: "热交换器"
+    device: "变温水箱"
+    notes: "温度影响范围最广（CVR、Tau、代谢率）; 升温速率需<1°C/5min; 水温-灌注液温差<10°C"
+
+  # 灌注压 / 主动脉灌注压 (Aortic Driving Pressure)
+  AoDP:
+    name: "灌注压(AoDP)"
+    name_en: "Aortic Driving Pressure"
+    unit: "mmHg"
+    confidence: high
+    status: confirmed
+    indicator_type: setpoint
+    source:
+      - "OCS操作手册"
+      - "CPB灌注压管理规范"
+    thresholds:
+      target:
+        min: 35
+        max: 45
+        description: "OCS标准灌注压"
+      warning:
+        operator: "<"
+        value: 30
+        description: "灌注压偏低，冠脉灌注不足风险"
+      red_line:
+        operator: "<"
+        value: 25
+        description: "灌注压严重不足，需立即干预"
+      warning_high:
+        operator: ">"
+        value: 50
+        description: "灌注压偏高，注意水肿"
+    baseline_reference: 40
+    control: "离心泵转速/反馈控制"
+    device: "离心泵"
+    escalation_rule: "AoDP<30→调整泵转速; AoDP<25→检查后负荷+冠脉插管位置"
+    notes: "AoDP是冠脉灌注驱动压; 过高→组织水肿; 过低→心肌缺血"
+
+  # 动脉氧分压 (Arterial PaO2) - 作为Setpoint
+  PaO2:
+    name: "动脉氧分压"
+    name_en: "Arterial Partial Pressure of Oxygen"
+    unit: "mmHg"
+    confidence: high
+    status: confirmed
+    indicator_type: setpoint
+    source:
+      - "氧合器管理规范"
+      - "AARC Clinical Practice Guideline"
+    thresholds:
+      target:
+        min: 100
+        max: 200
+        description: "OCS/CPB灌注目标PaO2"
+      warning:
+        operator: "<"
+        value: 80
+        description: "PaO2偏低，组织供氧不足风险"
+      red_line:
+        operator: "<"
+        value: 60
+        description: "低氧血症，需立即调整氧合器"
+      warning_high:
+        operator: ">"
+        value: 300
+        description: "PaO2过高，氧中毒风险"
+    baseline_reference: 150
+    control: "氧合器FiO2/扫气流量"
+    device: "氧合器"
+    escalation_rule: "PaO2<80→调整FiO2↑/扫气流量↑; PaO2<60→紧急检查氧合器功能"
+    notes: "PaO2影响CaO2和DO2; 过高可致氧中毒，过低致组织缺氧"
+
+  # 血红蛋白 (Hemoglobin) - 灌注液管理
+  Hemoglobin:
+    name: "血红蛋白"
+    name_en: "Hemoglobin"
+    unit: "g/L"
+    confidence: high
+    status: confirmed
+    indicator_type: setpoint
+    source:
+      - "CPB血液管理指南"
+      - "STS/SCA Blood Conservation Guideline"
+    thresholds:
+      target:
+        min: 40
+        max: 50
+        description: "CPB灌注期间目标Hb"
+      warning:
+        operator: "<"
+        value: 35
+        description: "Hb偏低，携氧能力不足"
+      red_line:
+        operator: "<"
+        value: 30
+        description: "严重贫血，需立即输血"
+      warning_high:
+        operator: ">"
+        value: 55
+        description: "Hb偏高，高粘滞风险"
+    baseline_reference: 45
+    control: "RBC添加/灌注液稀释"
+    device: "储血罐"
+    escalation_rule: "Hb<35→储血罐添加RBC; Hb<30→紧急输血"
+    notes: "Hb直接影响CaO2; 低Hb→MVO2↓→心肌缺氧; 过高→粘滞→微循环障碍"
+
+  # 起搏心率 (Pacing Rate)
+  PacingRate:
+    name: "起搏心率"
+    name_en: "Pacing Rate"
+    unit: "bpm"
+    confidence: high
+    status: confirmed
+    indicator_type: setpoint
+    source:
+      - "心脏起搏指南"
+      - "移植后起搏管理"
+    thresholds:
+      target:
+        min: 100
+        max: 110
+        description: "移植心脏起搏目标心率"
+      warning:
+        operator: ">"
+        value: 120
+        description: "心率过快，增加心肌耗氧"
+      warning_low:
+        operator: "<"
+        value: 90
+        description: "心率偏低，CO可能不足"
+    baseline_reference: 0
+    control: "起搏器设定"
+    device: "起搏器"
+    notes: "移植心脏去神经化，常需临时起搏; 目标100-110bpm维持CO"
+
+  # 多巴酚丁胺 (Dobutamine) - 正性肌力药
+  Dobutamine:
+    name: "多巴酚丁胺"
+    name_en: "Dobutamine"
+    unit: "μg/min"
+    confidence: high
+    status: confirmed
+    indicator_type: setpoint
+    source:
+      - "正性肌力药物指南"
+      - "心脏移植术后管理共识"
+    thresholds:
+      target:
+        min: 2
+        max: 6
+        description: "常规剂量范围"
+      warning_high:
+        operator: ">"
+        value: 8
+        description: "高剂量，注意心律失常"
+      red_line_high:
+        operator: ">"
+        value: 10
+        description: "极高剂量，评估是否需要MCS"
+    baseline_reference: 0
+    control: "注射泵速率"
+    device: "注射泵"
+    escalation_rule: "Dobutamine>8→评估加用米力农/Levosimendan; >10→评估MCS"
+    notes: "移植心脏对正性肌力药反应可能异常; 去神经化心脏对β受体直接激动有效"
+
+  # 胰岛素 (Insulin) - 血糖管理
+  Insulin:
+    name: "胰岛素"
+    name_en: "Insulin"
+    unit: "U/h"
+    confidence: high
+    status: confirmed
+    indicator_type: setpoint
+    source:
+      - "ICU血糖管理指南"
+      - "ADA 2025 Diabetes Care in Hospital"
+    thresholds:
+      target:
+        min: 1.5
+        max: 3.0
+        description: "常规输注速率"
+      warning_high:
+        operator: ">"
+        value: 5.0
+        description: "高剂量，注意低血糖风险"
+    baseline_reference: 2.0
+    control: "注射泵速率"
+    device: "注射泵"
+    notes: "灌注液含葡萄糖需胰岛素管理; 目标血糖7.8-10 mmol/L"
+
+# -----------------------------------------------------------------------------
+# 12. 血气分析补充指标 (Blood Gas Supplementary)
+# -----------------------------------------------------------------------------
+blood_gas_supplementary:
+  # 动脉pH
+  pH:
+    name: "动脉pH值"
+    name_en: "Arterial pH"
+    unit: ""
+    confidence: high
+    status: confirmed
+    indicator_type: readout
+    source:
+      - "血气分析临床指南"
+      - "CPB酸碱管理规范"
+    thresholds:
+      target:
+        min: 7.25
+        max: 7.35
+        description: "OCS/CPB灌注期间可接受pH范围"
+      warning:
+        operator: "<"
+        value: 7.20
+        description: "酸中毒警告"
+      red_line:
+        operator: "<"
+        value: 7.15
+        description: "严重酸中毒，心肌抑制风险"
+      warning_high:
+        operator: ">"
+        value: 7.45
+        description: "碱中毒"
+    baseline_reference: 7.30
+    escalation_rule: "pH<7.20→扫气排CO2或NaHCO3; pH<7.15→紧急纠酸"
+    notes: "酸中毒影响心肌收缩力和药物效应; 区分呼吸性/代谢性"
+
+  # 心肌氧耗 (MVO2)
+  MVO2:
+    name: "心肌氧耗"
+    name_en: "Myocardial Oxygen Consumption"
+    unit: "mLO₂/min/100g"
+    confidence: medium
+    status: confirmed
+    indicator_type: readout
+    source:
+      - "心肌氧代谢文献"
+      - "Suga PVA-MVO2 relationship"
+    thresholds:
+      target:
+        min: 8.8
+        max: 20
+        description: "正常心肌氧耗范围"
+      warning:
+        operator: "<"
+        value: 8.8
+        description: "MVO2偏低，心肌代谢不足"
+      red_line:
+        operator: "<"
+        value: 5
+        description: "MVO2严重不足"
+    baseline_reference: 6.5
+    notes: "MVO2与PVA线性相关; 反映心肌做功和氧供匹配"

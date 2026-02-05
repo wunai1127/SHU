@@ -4,9 +4,9 @@
 # 用途: 与当前指标对比，评估变化趋势和偏离程度
 # =============================================================================
 
-version: "2.0.0"
-last_updated: "2025-01-29"
-update_notes: "新增移植共识特异性指标baseline（TPG/PASP/肌酐/GFR/胆红素/冷缺血/PeakVO2等）"
+version: "3.0.0"
+last_updated: "2025-02-05"
+update_notes: "新增灌注调控参数(Setpoints)和血气补充指标(pH/MVO2)的baseline配置"
 
 # -----------------------------------------------------------------------------
 # Baseline 定义说明
@@ -164,6 +164,92 @@ confirmed_baselines:
     acceptable_deviation: 3
     deviation_unit: "mL/min/kg"
     confidence: high
+
+  # 灌注调控参数 (Setpoints)
+  Flow:
+    baseline_value: 4.5
+    unit: "L/min"
+    acceptable_deviation: 0.3
+    deviation_unit: "L/min"
+    confidence: high
+    indicator_type: setpoint
+    source: "CPB操作规范"
+
+  Temperature:
+    baseline_value: 22.0
+    unit: "°C"
+    acceptable_deviation: 2.0
+    deviation_unit: "°C"
+    confidence: high
+    indicator_type: setpoint
+    notes: "初始baseline为低温保护相; 复温阶段baseline会动态更新"
+
+  AoDP:
+    baseline_value: 40
+    unit: "mmHg"
+    acceptable_deviation: 5
+    deviation_unit: "mmHg"
+    confidence: high
+    indicator_type: setpoint
+
+  PaO2:
+    baseline_value: 150
+    unit: "mmHg"
+    acceptable_deviation: 30
+    deviation_unit: "mmHg"
+    confidence: high
+    indicator_type: setpoint
+
+  Hemoglobin:
+    baseline_value: 45
+    unit: "g/L"
+    acceptable_deviation: 5
+    deviation_unit: "g/L"
+    confidence: high
+    indicator_type: setpoint
+
+  PacingRate:
+    baseline_value: 0
+    unit: "bpm"
+    acceptable_deviation: 10
+    deviation_unit: "bpm"
+    confidence: high
+    indicator_type: setpoint
+    notes: "灌注初期无起搏(0), 复温后才开始起搏; 使用动态baseline"
+
+  Dobutamine:
+    baseline_value: 0
+    unit: "μg/min"
+    acceptable_deviation: 2
+    deviation_unit: "μg/min"
+    confidence: high
+    indicator_type: setpoint
+    notes: "灌注初期无正性肌力药; 根据心功能恢复逐步调整"
+
+  Insulin:
+    baseline_value: 2.0
+    unit: "U/h"
+    acceptable_deviation: 1.0
+    deviation_unit: "U/h"
+    confidence: high
+    indicator_type: setpoint
+
+  # 血气补充指标
+  pH:
+    baseline_value: 7.30
+    unit: ""
+    acceptable_deviation: 0.05
+    deviation_unit: ""
+    confidence: high
+    notes: "OCS/CPB灌注初期pH可略低于正常"
+
+  MVO2:
+    baseline_value: 6.5
+    unit: "mLO₂/min/100g"
+    acceptable_deviation: 2.0
+    deviation_unit: "mLO₂/min/100g"
+    confidence: medium
+    notes: "灌注初期低温下MVO2较低，复温后应升高"
 
 # -----------------------------------------------------------------------------
 # Pending 指标的 Baseline 占位

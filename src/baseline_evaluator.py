@@ -220,11 +220,32 @@ class BaselineEvaluator:
             Trend 趋势
         """
         # 定义哪些指标增加是有利的，哪些是不利的
-        higher_is_better = {'EF', 'CI', 'SvO2', 'pO2V', 'CF', 'MAP', 'AOP'}
-        lower_is_better = {'Lactate', 'PVR', 'chest_drainage'}
+        higher_is_better = {'EF', 'CI', 'SvO2', 'pO2V', 'CF', 'MAP', 'AOP',
+                           'MVO2', 'CvO2', 'pH', 'GFR', 'CrCl', 'PeakVO2'}
+        lower_is_better = {'Lactate', 'PVR', 'chest_drainage', 'TPG', 'PASP',
+                          'Creatinine', 'Bilirubin', 'ColdIschemiaTime'}
+        # Setpoints and bidirectional indicators - evaluate distance to target midpoint
+        maintain_target = {'K_A', 'Na_A', 'GluA', 'HR', 'MPA_Trough',
+                          'Flow', 'Temperature', 'AoDP', 'PaO2',
+                          'Hemoglobin', 'PacingRate', 'Dobutamine', 'Insulin'}
 
         # 设置一个小阈值来判断稳定
         stability_threshold = 0.05  # 5%变化视为稳定
+
+        if indicator in maintain_target:
+            # For Setpoints: stable if within acceptable deviation,
+            # otherwise use acceptable_deviation from config as stability check
+            baseline = self.get_baseline(indicator)
+            if baseline is None:
+                baseline = 1
+            if abs(delta) < stability_threshold * abs(baseline):
+                return Trend.STABLE
+            # Without target range info in BaselineEvaluator, use deviation direction
+            # Any large deviation from baseline is deteriorating for setpoints
+            acceptable = self._get_acceptable_deviation(indicator)
+            if acceptable and abs(delta) <= acceptable:
+                return Trend.STABLE
+            return Trend.UNKNOWN  # Cannot determine direction without target info
 
         if indicator in higher_is_better:
             if delta > stability_threshold * abs(self.get_baseline(indicator) or 1):
@@ -419,7 +440,7 @@ if __name__ == "__main__":
 
     print("=== Baseline 对比测试 ===\n")
 
-    # 模拟测量数据
+    # 模拟测量数据 - Readouts + Setpoints
     measurements = {
         "EF": 52,        # 接近baseline
         "CI": 2.1,       # 略低于baseline
@@ -429,6 +450,11 @@ if __name__ == "__main__":
         "MAP": 68,       # 正常
         "PVR": 2.8,      # 高于baseline
         "Emax": 150,     # pending指标，首次测量
+        # Setpoints
+        "Flow": 4.4,        # 接近baseline
+        "Temperature": 34,  # 复温中（从22°C baseline上升）
+        "AoDP": 38,         # 略低于baseline
+        "pH": 7.32,         # 接近baseline
     }
 
     # 生成报告
